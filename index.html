@@ -20,7 +20,7 @@
 
   <div id="app">
 
-    <!-- ========== شاشة البداية ========== -->
+    <!-- الشاشة الرئيسية -->
     <div id="home-screen" class="screen active">
       <img src="192.png" alt="DrDer Chess" class="logo-img" width="96" height="96">
       <h1 class="logo-title">DrDer Chess</h1>
@@ -32,20 +32,17 @@
       </div>
     </div>
 
-    <!-- ========== شاشة اللعب ========== -->
+    <!-- شاشة اللعب -->
     <div id="game-screen" class="screen">
       <div class="status-bar">
         <div class="status-info">
           <span id="status-icon" class="status-icon">⚪</span>
           <span id="status-text" class="status-text">دور الأبيض</span>
         </div>
-        <button id="btn-log" class="btn btn-dark btn-sm">📋 النقلات</button>
       </div>
-
       <div class="board-wrap">
         <div id="board"></div>
       </div>
-
       <div class="actions">
         <button id="btn-home" class="btn btn-dark">🏠 الرئيسية</button>
         <button id="btn-save" class="btn btn-dark">💾 حفظ</button>
@@ -53,7 +50,7 @@
       </div>
     </div>
 
-    <!-- ========== شاشة نهاية اللعبة ========== -->
+    <!-- شاشة نهاية اللعبة -->
     <div id="gameover-screen" class="screen">
       <span id="gameover-icon" class="gameover-icon">🏆</span>
       <h2 id="gameover-title" class="gameover-title">الأبيض يفوز!</h2>
@@ -64,7 +61,7 @@
       </div>
     </div>
 
-    <!-- ========== شاشة الإعدادات ========== -->
+    <!-- شاشة الإعدادات -->
     <div id="settings-screen" class="screen">
       <div class="settings-panel">
         <h3>⚙️ الإعدادات</h3>
@@ -89,6 +86,13 @@
             <span class="toggle-slider"></span>
           </label>
         </div>
+        <div class="setting-row">
+          <span class="setting-label">🔄 قلب الرقعة عند اللعب بالأسود</span>
+          <label class="toggle">
+            <input type="checkbox" id="toggle-flip">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
         <button id="btn-reset-settings" class="btn btn-dark" style="width:100%">🔄 إعادة الافتراضية</button>
         <button id="btn-sback" class="btn btn-gold" style="width:100%">↩️ رجوع</button>
       </div>
@@ -96,16 +100,7 @@
 
   </div>
 
-  <!-- ========== نافذة سجل النقلات ========== -->
-  <div id="overlay-log" class="overlay">
-    <div class="panel">
-      <h3>📋 سجل النقلات</h3>
-      <div id="log-content" class="log-text">لا توجد نقلات</div>
-      <button id="btn-close-log" class="btn btn-dark btn-sm" style="align-self:center">إغلاق</button>
-    </div>
-  </div>
-
-  <!-- ========== نافذة استعادة اللعبة ========== -->
+  <!-- نافذة استعادة اللعبة -->
   <div id="overlay-restore" class="overlay">
     <div class="panel">
       <h3>💾 استعادة اللعبة</h3>
@@ -117,7 +112,7 @@
     </div>
   </div>
 
-  <!-- ========== نافذة الترقية ========== -->
+  <!-- نافذة ترقية البيدق -->
   <div id="overlay-promo" class="overlay">
     <div class="panel">
       <h3>اختر قطعة الترقية</h3>
