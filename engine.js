@@ -3,55 +3,58 @@
    يدعم جميع قوانين الشطرنج الرسمية
    ============================================ */
 
-// ---------- الثوابت ----------
+'use strict';
+
+// ---------- الثوابت الأساسية ----------
 const WHITE = 'w';
 const BLACK = 'b';
 
-const PIECE_NONE = 0;
-const PIECE_PAWN = 1;
-const PIECE_KNIGHT = 2;
-const PIECE_BISHOP = 3;
-const PIECE_ROOK = 4;
-const PIECE_QUEEN = 5;
-const PIECE_KING = 6;
+const PAWN = 'p';
+const KNIGHT = 'n';
+const BISHOP = 'b';
+const ROOK = 'r';
+const QUEEN = 'q';
+const KING = 'k';
 
-// رموز القطع للنص
+const PIECE_TYPES = [PAWN, KNIGHT, BISHOP, ROOK, QUEEN, KING];
+
+// رموز القطع المرئية (Unicode)
 const PIECE_SYMBOLS = {
-  [PIECE_PAWN]: { [WHITE]: '♙', [BLACK]: '♟' },
-  [PIECE_KNIGHT]: { [WHITE]: '♘', [BLACK]: '♞' },
-  [PIECE_BISHOP]: { [WHITE]: '♗', [BLACK]: '♝' },
-  [PIECE_ROOK]: { [WHITE]: '♖', [BLACK]: '♜' },
-  [PIECE_QUEEN]: { [WHITE]: '♕', [BLACK]: '♛' },
-  [PIECE_KING]: { [WHITE]: '♔', [BLACK]: '♚' }
+  [PAWN]:   { [WHITE]: '♙', [BLACK]: '♟' },
+  [KNIGHT]: { [WHITE]: '♘', [BLACK]: '♞' },
+  [BISHOP]: { [WHITE]: '♗', [BLACK]: '♝' },
+  [ROOK]:   { [WHITE]: '♖', [BLACK]: '♜' },
+  [QUEEN]:  { [WHITE]: '♕', [BLACK]: '♛' },
+  [KING]:   { [WHITE]: '♔', [BLACK]: '♚' }
 };
 
-// أحرف PGN
-const PGN_SYMBOLS = {
-  [PIECE_PAWN]: '',
-  [PIECE_KNIGHT]: 'N',
-  [PIECE_BISHOP]: 'B',
-  [PIECE_ROOK]: 'R',
-  [PIECE_QUEEN]: 'Q',
-  [PIECE_KING]: 'K'
-};
-
-// أسماء الملفات والأعمدة
+// أسماء الملفات والصفوف للترميز الجبري
 const FILES = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
 const RANKS = ['8', '7', '6', '5', '4', '3', '2', '1'];
 
-// Piece-Square Tables للذكاء الاصطناعي (من منظور الأبيض)
-const PAWN_TABLE = [
+// قيم القطع المادية
+const PIECE_VALUES = {
+  [PAWN]: 100,
+  [KNIGHT]: 320,
+  [BISHOP]: 330,
+  [ROOK]: 500,
+  [QUEEN]: 900,
+  [KING]: 20000
+};
+
+// ---------- Piece-Square Tables (منظور الأبيض، للأسود نعكس) ----------
+const PST_PAWN = [
    0,  0,  0,  0,  0,  0,  0,  0,
   50, 50, 50, 50, 50, 50, 50, 50,
   10, 10, 20, 30, 30, 20, 10, 10,
-   5,  5, 10, 25, 25, 10,  5,  5,
-   0,  0,  0, 20, 20,  0,  0,  0,
+   5,  5, 10, 27, 27, 10,  5,  5,
+   0,  0,  0, 25, 25,  0,  0,  0,
    5, -5,-10,  0,  0,-10, -5,  5,
-   5, 10, 10,-20,-20, 10, 10,  5,
+   5, 10, 10,-25,-25, 10, 10,  5,
    0,  0,  0,  0,  0,  0,  0,  0
 ];
 
-const KNIGHT_TABLE = [
+const PST_KNIGHT = [
   -50,-40,-30,-30,-30,-30,-40,-50,
   -40,-20,  0,  0,  0,  0,-20,-40,
   -30,  0, 10, 15, 15, 10,  0,-30,
@@ -62,7 +65,7 @@ const KNIGHT_TABLE = [
   -50,-40,-30,-30,-30,-30,-40,-50
 ];
 
-const BISHOP_TABLE = [
+const PST_BISHOP = [
   -20,-10,-10,-10,-10,-10,-10,-20,
   -10,  0,  0,  0,  0,  0,  0,-10,
   -10,  0, 10, 10, 10, 10,  0,-10,
@@ -73,7 +76,7 @@ const BISHOP_TABLE = [
   -20,-10,-10,-10,-10,-10,-10,-20
 ];
 
-const ROOK_TABLE = [
+const PST_ROOK = [
    0,  0,  0,  0,  0,  0,  0,  0,
    5, 10, 10, 10, 10, 10, 10,  5,
   -5,  0,  0,  0,  0,  0,  0, -5,
@@ -84,7 +87,7 @@ const ROOK_TABLE = [
    0,  0,  0,  5,  5,  0,  0,  0
 ];
 
-const QUEEN_TABLE = [
+const PST_QUEEN = [
   -20,-10,-10, -5, -5,-10,-10,-20,
   -10,  0,  0,  0,  0,  0,  0,-10,
   -10,  0,  5,  5,  5,  5,  0,-10,
@@ -95,7 +98,7 @@ const QUEEN_TABLE = [
   -20,-10,-10, -5, -5,-10,-10,-20
 ];
 
-const KING_MIDDLE_TABLE = [
+const PST_KING_MID = [
   -30,-40,-40,-50,-50,-40,-40,-30,
   -30,-40,-40,-50,-50,-40,-40,-30,
   -30,-40,-40,-50,-50,-40,-40,-30,
@@ -106,7 +109,7 @@ const KING_MIDDLE_TABLE = [
    20, 30, 10,  0,  0, 10, 30, 20
 ];
 
-const KING_END_TABLE = [
+const PST_KING_END = [
   -50,-40,-30,-20,-20,-30,-40,-50,
   -30,-20,-10,  0,  0,-10,-20,-30,
   -30,-10, 20, 30, 30, 20,-10,-30,
@@ -117,933 +120,670 @@ const KING_END_TABLE = [
   -50,-30,-30,-30,-30,-30,-30,-50
 ];
 
-const PIECE_TABLES = {
-  [PIECE_PAWN]: PAWN_TABLE,
-  [PIECE_KNIGHT]: KNIGHT_TABLE,
-  [PIECE_BISHOP]: BISHOP_TABLE,
-  [PIECE_ROOK]: ROOK_TABLE,
-  [PIECE_QUEEN]: QUEEN_TABLE,
-  [PIECE_KING]: KING_MIDDLE_TABLE
+const PST_TABLES = {
+  [PAWN]: PST_PAWN,
+  [KNIGHT]: PST_KNIGHT,
+  [BISHOP]: PST_BISHOP,
+  [ROOK]: PST_ROOK,
+  [QUEEN]: PST_QUEEN
 };
 
-// قيم القطع للتقييم
-const PIECE_VALUES = {
-  [PIECE_PAWN]: 100,
-  [PIECE_KNIGHT]: 320,
-  [PIECE_BISHOP]: 330,
-  [PIECE_ROOK]: 500,
-  [PIECE_QUEEN]: 900,
-  [PIECE_KING]: 20000
-};
+// ---------- دوال مساعدة ----------
+function algebraic(rank, file) {
+  return FILES[file] + RANKS[rank];
+}
 
-// ---------- كلاس حالة اللعبة ----------
+function inBounds(r, f) {
+  return r >= 0 && r <= 7 && f >= 0 && f <= 7;
+}
+
+function opponent(color) {
+  return color === WHITE ? BLACK : WHITE;
+}
+
+// ---------- كلاس ChessState ----------
 class ChessState {
-  constructor() {
-    this.reset();
+  constructor(fen) {
+    this.reset(fen || INIT_FEN);
   }
 
-  // إعادة تعيين الحالة للوضع الابتدائي
-  reset() {
-    // تمثيل الرقعة: board[rank][file]، rank 0 = الصف 8 (أعلى)، rank 7 = الصف 1 (أسفل)
-    // null تعني مربع فارغ، وإلا { type, color }
-    this.board = this.createInitialBoard();
+  // إعادة تعيين الرقعة من FEN
+  reset(fen) {
+    this.board = this.createEmptyBoard();
     this.turn = WHITE;
-    this.castlingRights = { wK: true, wQ: true, bK: true, bQ: true };
-    this.enPassantTarget = null; // { rank, file } أو null
-    this.halfMoveClock = 0;
-    this.fullMoveNumber = 1;
-    this.moveHistory = [];
-    this.positionHistory = []; // لتتبع التكرار الثلاثي
-    this.currentPositionKey = this.getPositionKey();
-    this.positionCount = {};
-    this.positionCount[this.currentPositionKey] = 1;
+    this.castling = { wK: false, wQ: false, bK: false, bQ: false };
+    this.enPassant = null; // { rank, file } أو null
+    this.halfMoves = 0;
+    this.fullMove = 1;
+    this.history = [];
+    this.posKeys = []; // لتتبع مفاتيح المواقع للتكرار الثلاثي
+    this.posCount = {};
     this.gameOver = false;
-    this.gameResult = null; // 'white', 'black', 'draw'
-    this.gameResultReason = '';
+    this.result = null; // 'white', 'black', 'draw'
+    this.reason = '';
+    this.parseFEN(fen);
+    this.updatePositionKey();
   }
 
-  // إنشاء الرقعة الابتدائية
-  createInitialBoard() {
+  createEmptyBoard() {
     const board = [];
-    // الصف 8 (rank 0)
-    board.push([
-      { type: PIECE_ROOK, color: BLACK },
-      { type: PIECE_KNIGHT, color: BLACK },
-      { type: PIECE_BISHOP, color: BLACK },
-      { type: PIECE_QUEEN, color: BLACK },
-      { type: PIECE_KING, color: BLACK },
-      { type: PIECE_BISHOP, color: BLACK },
-      { type: PIECE_KNIGHT, color: BLACK },
-      { type: PIECE_ROOK, color: BLACK }
-    ]);
-    // الصف 7 (rank 1)
-    board.push([
-      { type: PIECE_PAWN, color: BLACK },
-      { type: PIECE_PAWN, color: BLACK },
-      { type: PIECE_PAWN, color: BLACK },
-      { type: PIECE_PAWN, color: BLACK },
-      { type: PIECE_PAWN, color: BLACK },
-      { type: PIECE_PAWN, color: BLACK },
-      { type: PIECE_PAWN, color: BLACK },
-      { type: PIECE_PAWN, color: BLACK }
-    ]);
-    // الصفوف الفارغة
-    for (let r = 2; r < 6; r++) {
-      board.push([null, null, null, null, null, null, null, null]);
+    for (let r = 0; r < 8; r++) {
+      board[r] = new Array(8).fill(null);
     }
-    // الصف 2 (rank 6)
-    board.push([
-      { type: PIECE_PAWN, color: WHITE },
-      { type: PIECE_PAWN, color: WHITE },
-      { type: PIECE_PAWN, color: WHITE },
-      { type: PIECE_PAWN, color: WHITE },
-      { type: PIECE_PAWN, color: WHITE },
-      { type: PIECE_PAWN, color: WHITE },
-      { type: PIECE_PAWN, color: WHITE },
-      { type: PIECE_PAWN, color: WHITE }
-    ]);
-    // الصف 1 (rank 7)
-    board.push([
-      { type: PIECE_ROOK, color: WHITE },
-      { type: PIECE_KNIGHT, color: WHITE },
-      { type: PIECE_BISHOP, color: WHITE },
-      { type: PIECE_QUEEN, color: WHITE },
-      { type: PIECE_KING, color: WHITE },
-      { type: PIECE_BISHOP, color: WHITE },
-      { type: PIECE_KNIGHT, color: WHITE },
-      { type: PIECE_ROOK, color: WHITE }
-    ]);
     return board;
   }
 
-  // نسخ عميق للحالة
-  clone() {
-    const cloned = new ChessState();
-    cloned.board = this.board.map(row => row.map(cell => cell ? { ...cell } : null));
-    cloned.turn = this.turn;
-    cloned.castlingRights = { ...this.castlingRights };
-    cloned.enPassantTarget = this.enPassantTarget ? { ...this.enPassantTarget } : null;
-    cloned.halfMoveClock = this.halfMoveClock;
-    cloned.fullMoveNumber = this.fullMoveNumber;
-    cloned.moveHistory = [...this.moveHistory];
-    cloned.positionHistory = [...this.positionHistory];
-    cloned.currentPositionKey = this.currentPositionKey;
-    cloned.positionCount = { ...this.positionCount };
-    cloned.gameOver = this.gameOver;
-    cloned.gameResult = this.gameResult;
-    cloned.gameResultReason = this.gameResultReason;
-    return cloned;
-  }
-
-  // الحصول على مفتاح فريد للموقع الحالي (للتكرار الثلاثي)
-  getPositionKey() {
-    let key = '';
+  // تحليل FEN
+  parseFEN(fen) {
+    const parts = fen.split(' ');
+    const rows = parts[0].split('/');
     for (let r = 0; r < 8; r++) {
-      for (let f = 0; f < 8; f++) {
-        const piece = this.board[r][f];
-        if (piece) {
-          key += piece.color + piece.type + r + f + ',';
+      let f = 0;
+      for (const ch of rows[r]) {
+        if (ch >= '1' && ch <= '8') {
+          f += parseInt(ch);
         } else {
-          key += '--,';
+          const color = ch === ch.toUpperCase() ? WHITE : BLACK;
+          const type = ch.toLowerCase();
+          this.board[r][f] = { type, color };
+          f++;
         }
       }
     }
-    key += this.turn;
-    key += this.castlingRights.wK ? '1' : '0';
-    key += this.castlingRights.wQ ? '1' : '0';
-    key += this.castlingRights.bK ? '1' : '0';
-    key += this.castlingRights.bQ ? '1' : '0';
-    if (this.enPassantTarget) {
-      key += 'ep' + this.enPassantTarget.rank + this.enPassantTarget.file;
+    this.turn = parts[1] === 'w' ? WHITE : BLACK;
+    this.castling = {
+      wK: parts[2].includes('K'),
+      wQ: parts[2].includes('Q'),
+      bK: parts[2].includes('k'),
+      bQ: parts[2].includes('q')
+    };
+    if (parts[3] !== '-') {
+      const file = FILES.indexOf(parts[3][0]);
+      const rank = 8 - parseInt(parts[3][1]);
+      this.enPassant = { rank, file };
+    } else {
+      this.enPassant = null;
     }
-    return key;
+    this.halfMoves = parseInt(parts[4]) || 0;
+    this.fullMove = parseInt(parts[5]) || 1;
   }
 
-  // التحقق من وجود قطعة في مربع معين
-  getPiece(rank, file) {
-    if (rank < 0 || rank > 7 || file < 0 || file > 7) return null;
-    return this.board[rank][file];
+  // تصدير FEN
+  toFEN() {
+    let fen = '';
+    for (let r = 0; r < 8; r++) {
+      let empty = 0;
+      for (let f = 0; f < 8; f++) {
+        const piece = this.board[r][f];
+        if (piece) {
+          if (empty > 0) { fen += empty; empty = 0; }
+          const ch = piece.type.toUpperCase();
+          fen += piece.color === WHITE ? ch : ch.toLowerCase();
+        } else {
+          empty++;
+        }
+      }
+      if (empty > 0) fen += empty;
+      if (r < 7) fen += '/';
+    }
+    fen += ' ' + (this.turn === WHITE ? 'w' : 'b') + ' ';
+    let castling = '';
+    if (this.castling.wK) castling += 'K';
+    if (this.castling.wQ) castling += 'Q';
+    if (this.castling.bK) castling += 'k';
+    if (this.castling.bQ) castling += 'q';
+    fen += (castling || '-') + ' ';
+    fen += this.enPassant ? algebraic(this.enPassant.rank, this.enPassant.file) : '-';
+    fen += ' ' + this.halfMoves + ' ' + this.fullMove;
+    return fen;
   }
 
-  // التحقق من أن المربع داخل الرقعة
-  isValidSquare(rank, file) {
-    return rank >= 0 && rank <= 7 && file >= 0 && file <= 7;
+  // نسخ الحالة (نسخة خفيفة)
+  clone() {
+    const c = new ChessState(this.toFEN());
+    c.history = this.history.slice();
+    c.posKeys = this.posKeys.slice();
+    c.posCount = { ...this.posCount };
+    c.gameOver = this.gameOver;
+    c.result = this.result;
+    c.reason = this.reason;
+    return c;
   }
 
-  // البحث عن موقع الملك للون المحدد
+  // الحصول على قطعة في مربع
+  pieceAt(r, f) {
+    if (!inBounds(r, f)) return null;
+    return this.board[r][f];
+  }
+
+  // البحث عن الملك
   findKing(color) {
     for (let r = 0; r < 8; r++) {
       for (let f = 0; f < 8; f++) {
-        const piece = this.board[r][f];
-        if (piece && piece.type === PIECE_KING && piece.color === color) {
-          return { rank: r, file: f };
-        }
+        const p = this.board[r][f];
+        if (p && p.type === KING && p.color === color) return { rank: r, file: f };
       }
     }
     return null;
   }
 
-  // التحقق مما إذا كان اللون المحدد في حالة كش
-  isInCheck(color) {
-    const kingPos = this.findKing(color);
-    if (!kingPos) return true; // الملك غير موجود (لا يجب أن يحدث)
-    return this.isSquareAttacked(kingPos.rank, kingPos.file, color === WHITE ? BLACK : WHITE);
-  }
-
-  // التحقق مما إذا كان مربع معين يتعرض للهجوم من قبل اللون المهاجم
-  isSquareAttacked(rank, file, attackerColor) {
-    // هجوم البيادق
-    const pawnDir = attackerColor === WHITE ? 1 : -1;
-    const pawnAttacks = [
-      { r: rank + pawnDir, f: file - 1 },
-      { r: rank + pawnDir, f: file + 1 }
-    ];
-    for (const att of pawnAttacks) {
-      if (this.isValidSquare(att.r, att.f)) {
-        const piece = this.board[att.r][att.f];
-        if (piece && piece.type === PIECE_PAWN && piece.color === attackerColor) {
-          return true;
-        }
+  // هل المربع (r,f) مهدد من قبل اللون attacker؟
+  isAttacked(r, f, attacker) {
+    // البيادق
+    const pawnDir = attacker === WHITE ? 1 : -1;
+    const pawnTargets = [[r + pawnDir, f - 1], [r + pawnDir, f + 1]];
+    for (const [tr, tf] of pawnTargets) {
+      if (inBounds(tr, tf)) {
+        const p = this.board[tr][tf];
+        if (p && p.type === PAWN && p.color === attacker) return true;
       }
     }
-
-    // هجوم الحصان
-    const knightMoves = [
-      { r: -2, f: -1 }, { r: -2, f: 1 }, { r: -1, f: -2 }, { r: -1, f: 2 },
-      { r: 1, f: -2 }, { r: 1, f: 2 }, { r: 2, f: -1 }, { r: 2, f: 1 }
-    ];
-    for (const move of knightMoves) {
-      const nr = rank + move.r;
-      const nf = file + move.f;
-      if (this.isValidSquare(nr, nf)) {
-        const piece = this.board[nr][nf];
-        if (piece && piece.type === PIECE_KNIGHT && piece.color === attackerColor) {
-          return true;
-        }
+    // الحصان
+    const knightMoves = [[-2,-1],[-2,1],[-1,-2],[-1,2],[1,-2],[1,2],[2,-1],[2,1]];
+    for (const [dr, df] of knightMoves) {
+      const tr = r + dr, tf = f + df;
+      if (inBounds(tr, tf)) {
+        const p = this.board[tr][tf];
+        if (p && p.type === KNIGHT && p.color === attacker) return true;
       }
     }
-
-    // هجوم الملك
-    const kingMoves = [
-      { r: -1, f: -1 }, { r: -1, f: 0 }, { r: -1, f: 1 },
-      { r: 0, f: -1 }, { r: 0, f: 1 },
-      { r: 1, f: -1 }, { r: 1, f: 0 }, { r: 1, f: 1 }
-    ];
-    for (const move of kingMoves) {
-      const nr = rank + move.r;
-      const nf = file + move.f;
-      if (this.isValidSquare(nr, nf)) {
-        const piece = this.board[nr][nf];
-        if (piece && piece.type === PIECE_KING && piece.color === attackerColor) {
-          return true;
-        }
+    // الملك
+    const kingMoves = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
+    for (const [dr, df] of kingMoves) {
+      const tr = r + dr, tf = f + df;
+      if (inBounds(tr, tf)) {
+        const p = this.board[tr][tf];
+        if (p && p.type === KING && p.color === attacker) return true;
       }
     }
-
-    // هجوم الخطوط المستقيمة (الرخ والملكة)
-    const straightDirs = [
-      { r: -1, f: 0 }, { r: 1, f: 0 }, { r: 0, f: -1 }, { r: 0, f: 1 }
-    ];
-    for (const dir of straightDirs) {
-      let nr = rank + dir.r;
-      let nf = file + dir.f;
-      while (this.isValidSquare(nr, nf)) {
-        const piece = this.board[nr][nf];
-        if (piece) {
-          if ((piece.type === PIECE_ROOK || piece.type === PIECE_QUEEN) && piece.color === attackerColor) {
-            return true;
-          }
+    // الخطوط المستقيمة (رخ، ملكة)
+    const straightDirs = [[-1,0],[1,0],[0,-1],[0,1]];
+    for (const [dr, df] of straightDirs) {
+      let tr = r + dr, tf = f + df;
+      while (inBounds(tr, tf)) {
+        const p = this.board[tr][tf];
+        if (p) {
+          if ((p.type === ROOK || p.type === QUEEN) && p.color === attacker) return true;
           break;
         }
-        nr += dir.r;
-        nf += dir.f;
+        tr += dr; tf += df;
       }
     }
-
-    // هجوم الأقطار (الفيل والملكة)
-    const diagDirs = [
-      { r: -1, f: -1 }, { r: -1, f: 1 }, { r: 1, f: -1 }, { r: 1, f: 1 }
-    ];
-    for (const dir of diagDirs) {
-      let nr = rank + dir.r;
-      let nf = file + dir.f;
-      while (this.isValidSquare(nr, nf)) {
-        const piece = this.board[nr][nf];
-        if (piece) {
-          if ((piece.type === PIECE_BISHOP || piece.type === PIECE_QUEEN) && piece.color === attackerColor) {
-            return true;
-          }
+    // الأقطار (فيل، ملكة)
+    const diagDirs = [[-1,-1],[-1,1],[1,-1],[1,1]];
+    for (const [dr, df] of diagDirs) {
+      let tr = r + dr, tf = f + df;
+      while (inBounds(tr, tf)) {
+        const p = this.board[tr][tf];
+        if (p) {
+          if ((p.type === BISHOP || p.type === QUEEN) && p.color === attacker) return true;
           break;
         }
-        nr += dir.r;
-        nf += dir.f;
+        tr += dr; tf += df;
       }
     }
-
     return false;
   }
 
-  // توليد جميع الحركات القانونية للون المحدد
-  generateLegalMoves(color) {
-    const pseudoMoves = this.generatePseudoLegalMoves(color);
-    const legalMoves = [];
-
-    for (const move of pseudoMoves) {
-      const cloned = this.clone();
-      cloned.makeMoveWithoutValidation(move);
-      if (!cloned.isInCheck(color)) {
-        legalMoves.push(move);
-      }
-    }
-
-    return legalMoves;
+  // هل اللون color في كش؟
+  inCheck(color) {
+    const king = this.findKing(color);
+    if (!king) return true;
+    return this.isAttacked(king.rank, king.file, opponent(color));
   }
 
-  // توليد الحركات شبه القانونية (بدون التحقق من الكش على الملك)
-  generatePseudoLegalMoves(color) {
+  // توليد كل الحركات شبه القانونية للون
+  generatePseudoMoves(color) {
     const moves = [];
-
     for (let r = 0; r < 8; r++) {
       for (let f = 0; f < 8; f++) {
         const piece = this.board[r][f];
         if (!piece || piece.color !== color) continue;
-
-        switch (piece.type) {
-          case PIECE_PAWN:
-            this.generatePawnMoves(r, f, color, moves);
-            break;
-          case PIECE_KNIGHT:
-            this.generateKnightMoves(r, f, color, moves);
-            break;
-          case PIECE_BISHOP:
-            this.generateSlidingMoves(r, f, color, [
-              { r: -1, f: -1 }, { r: -1, f: 1 }, { r: 1, f: -1 }, { r: 1, f: 1 }
-            ], moves);
-            break;
-          case PIECE_ROOK:
-            this.generateSlidingMoves(r, f, color, [
-              { r: -1, f: 0 }, { r: 1, f: 0 }, { r: 0, f: -1 }, { r: 0, f: 1 }
-            ], moves);
-            break;
-          case PIECE_QUEEN:
-            this.generateSlidingMoves(r, f, color, [
-              { r: -1, f: -1 }, { r: -1, f: 1 }, { r: 1, f: -1 }, { r: 1, f: 1 },
-              { r: -1, f: 0 }, { r: 1, f: 0 }, { r: 0, f: -1 }, { r: 0, f: 1 }
-            ], moves);
-            break;
-          case PIECE_KING:
-            this.generateKingMoves(r, f, color, moves);
-            break;
-        }
+        this.addMovesForPiece(r, f, piece, moves);
       }
     }
-
     return moves;
   }
 
-  // توليد حركات البيدق
-  generatePawnMoves(rank, file, color, moves) {
-    const direction = color === WHITE ? -1 : 1;
+  // إضافة حركات قطعة واحدة
+  addMovesForPiece(r, f, piece, moves) {
+    switch (piece.type) {
+      case PAWN:   this.addPawnMoves(r, f, piece.color, moves); break;
+      case KNIGHT: this.addKnightMoves(r, f, piece.color, moves); break;
+      case BISHOP: this.addSlidingMoves(r, f, piece.color, [[-1,-1],[-1,1],[1,-1],[1,1]], moves); break;
+      case ROOK:   this.addSlidingMoves(r, f, piece.color, [[-1,0],[1,0],[0,-1],[0,1]], moves); break;
+      case QUEEN:  this.addSlidingMoves(r, f, piece.color, [[-1,-1],[-1,1],[1,-1],[1,1],[-1,0],[1,0],[0,-1],[0,1]], moves); break;
+      case KING:   this.addKingMoves(r, f, piece.color, moves); break;
+    }
+  }
+
+  addPawnMoves(r, f, color, moves) {
+    const dir = color === WHITE ? -1 : 1;
     const startRank = color === WHITE ? 6 : 1;
-    const promotionRank = color === WHITE ? 0 : 7;
+    const promoRank = color === WHITE ? 0 : 7;
+    const fwd = r + dir;
 
-    // التقدم مربع واحد
-    const oneStep = rank + direction;
-    if (this.isValidSquare(oneStep, file) && !this.board[oneStep][file]) {
-      if (oneStep === promotionRank) {
-        this.addPromotionMoves(rank, file, oneStep, file, moves);
+    // تقدم بمقدار 1
+    if (inBounds(fwd, f) && !this.board[fwd][f]) {
+      if (fwd === promoRank) {
+        for (const pt of [QUEEN, ROOK, BISHOP, KNIGHT]) {
+          moves.push({ fromR: r, fromF: f, toR: fwd, toF: f, promo: pt });
+        }
       } else {
-        moves.push({ fromRank: rank, fromFile: file, toRank: oneStep, toFile: file });
+        moves.push({ fromR: r, fromF: f, toR: fwd, toF: f });
+      }
+      // تقدم بمقدار 2 من البداية
+      const fwd2 = r + 2 * dir;
+      if (r === startRank && !this.board[fwd2][f]) {
+        moves.push({ fromR: r, fromF: f, toR: fwd2, toF: f });
       }
     }
-
-    // التقدم مربعين من البداية
-    if (rank === startRank) {
-      const twoStep = rank + 2 * direction;
-      const between = rank + direction;
-      if (this.isValidSquare(twoStep, file) && !this.board[between][file] && !this.board[twoStep][file]) {
-        moves.push({ fromRank: rank, fromFile: file, toRank: twoStep, toFile: file });
-      }
-    }
-
-    // الأكل القطري
-    const captures = [{ r: rank + direction, f: file - 1 }, { r: rank + direction, f: file + 1 }];
-    for (const cap of captures) {
-      if (this.isValidSquare(cap.r, cap.f)) {
-        const target = this.board[cap.r][cap.f];
-        if (target && target.color !== color) {
-          if (cap.r === promotionRank) {
-            this.addPromotionMoves(rank, file, cap.r, cap.f, moves);
-          } else {
-            moves.push({ fromRank: rank, fromFile: file, toRank: cap.r, toFile: cap.f, capture: target });
+    // الأكل
+    for (const df of [-1, 1]) {
+      const tf = f + df;
+      if (!inBounds(fwd, tf)) continue;
+      const target = this.board[fwd][tf];
+      if (target && target.color !== color) {
+        if (fwd === promoRank) {
+          for (const pt of [QUEEN, ROOK, BISHOP, KNIGHT]) {
+            moves.push({ fromR: r, fromF: f, toR: fwd, toF: tf, promo: pt, capture: target });
           }
+        } else {
+          moves.push({ fromR: r, fromF: f, toR: fwd, toF: tf, capture: target });
         }
-        // الأخذ بالتجاوز
-        if (this.enPassantTarget && this.enPassantTarget.rank === cap.r && this.enPassantTarget.file === cap.f) {
-          moves.push({
-            fromRank: rank, fromFile: file, toRank: cap.r, toFile: cap.f,
-            enPassant: true, capture: { type: PIECE_PAWN, color: color === WHITE ? BLACK : WHITE }
-          });
-        }
+      }
+      // en passant
+      if (this.enPassant && this.enPassant.rank === fwd && this.enPassant.file === tf) {
+        moves.push({
+          fromR: r, fromF: f, toR: fwd, toF: tf,
+          enPassant: true,
+          capture: { type: PAWN, color: opponent(color) }
+        });
       }
     }
   }
 
-  // إضافة حركات الترقية
-  addPromotionMoves(fromRank, fromFile, toRank, toFile, moves) {
-    const promotionPieces = [PIECE_QUEEN, PIECE_ROOK, PIECE_BISHOP, PIECE_KNIGHT];
-    const targetPiece = this.board[toRank][toFile];
-    for (const promoType of promotionPieces) {
-      moves.push({
-        fromRank, fromFile, toRank, toFile,
-        promotion: promoType,
-        capture: targetPiece || undefined
-      });
-    }
-  }
-
-  // توليد حركات الحصان
-  generateKnightMoves(rank, file, color, moves) {
-    const knightMoves = [
-      { r: -2, f: -1 }, { r: -2, f: 1 }, { r: -1, f: -2 }, { r: -1, f: 2 },
-      { r: 1, f: -2 }, { r: 1, f: 2 }, { r: 2, f: -1 }, { r: 2, f: 1 }
-    ];
-    for (const move of knightMoves) {
-      const nr = rank + move.r;
-      const nf = file + move.f;
-      if (this.isValidSquare(nr, nf)) {
-        const target = this.board[nr][nf];
-        if (!target || target.color !== color) {
-          moves.push({
-            fromRank: rank, fromFile: file, toRank: nr, toFile: nf,
-            capture: target || undefined
-          });
-        }
+  addKnightMoves(r, f, color, moves) {
+    const dirs = [[-2,-1],[-2,1],[-1,-2],[-1,2],[1,-2],[1,2],[2,-1],[2,1]];
+    for (const [dr, df] of dirs) {
+      const tr = r + dr, tf = f + df;
+      if (!inBounds(tr, tf)) continue;
+      const target = this.board[tr][tf];
+      if (!target || target.color !== color) {
+        moves.push({ fromR: r, fromF: f, toR: tr, toF: tf, capture: target || undefined });
       }
     }
   }
 
-  // توليد حركات القطع المنزلقة (فيل، رخ، ملكة)
-  generateSlidingMoves(rank, file, color, directions, moves) {
-    for (const dir of directions) {
-      let nr = rank + dir.r;
-      let nf = file + dir.f;
-      while (this.isValidSquare(nr, nf)) {
-        const target = this.board[nr][nf];
+  addSlidingMoves(r, f, color, dirs, moves) {
+    for (const [dr, df] of dirs) {
+      let tr = r + dr, tf = f + df;
+      while (inBounds(tr, tf)) {
+        const target = this.board[tr][tf];
         if (target) {
           if (target.color !== color) {
-            moves.push({
-              fromRank: rank, fromFile: file, toRank: nr, toFile: nf,
-              capture: target
-            });
+            moves.push({ fromR: r, fromF: f, toR: tr, toF: tf, capture: target });
           }
           break;
         }
-        moves.push({ fromRank: rank, fromFile: file, toRank: nr, toFile: nf });
-        nr += dir.r;
-        nf += dir.f;
+        moves.push({ fromR: r, fromF: f, toR: tr, toF: tf });
+        tr += dr; tf += df;
       }
     }
   }
 
-  // توليد حركات الملك (بما في ذلك التبييت)
-  generateKingMoves(rank, file, color, moves) {
-    const kingMoves = [
-      { r: -1, f: -1 }, { r: -1, f: 0 }, { r: -1, f: 1 },
-      { r: 0, f: -1 }, { r: 0, f: 1 },
-      { r: 1, f: -1 }, { r: 1, f: 0 }, { r: 1, f: 1 }
-    ];
-    for (const move of kingMoves) {
-      const nr = rank + move.r;
-      const nf = file + move.f;
-      if (this.isValidSquare(nr, nf)) {
-        const target = this.board[nr][nf];
-        if (!target || target.color !== color) {
-          moves.push({
-            fromRank: rank, fromFile: file, toRank: nr, toFile: nf,
-            capture: target || undefined
-          });
+  addKingMoves(r, f, color, moves) {
+    const dirs = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
+    for (const [dr, df] of dirs) {
+      const tr = r + dr, tf = f + df;
+      if (!inBounds(tr, tf)) continue;
+      const target = this.board[tr][tf];
+      if (!target || target.color !== color) {
+        moves.push({ fromR: r, fromF: f, toR: tr, toF: tf, capture: target || undefined });
+      }
+    }
+    // التبييت
+    const rank = color === WHITE ? 7 : 0;
+    if (r !== rank || f !== 4 || this.inCheck(color)) return;
+    const opp = opponent(color);
+    // جهة الملك
+    const ksKey = color === WHITE ? 'wK' : 'bK';
+    if (this.castling[ksKey] && !this.board[rank][5] && !this.board[rank][6]) {
+      if (!this.isAttacked(rank, 5, opp) && !this.isAttacked(rank, 6, opp)) {
+        const rookPiece = this.board[rank][7];
+        if (rookPiece && rookPiece.type === ROOK && rookPiece.color === color) {
+          moves.push({ fromR: r, fromF: f, toR: rank, toF: 6, castling: 'k' });
         }
       }
+    }
+    // جهة الملكة
+    const qsKey = color === WHITE ? 'wQ' : 'bQ';
+    if (this.castling[qsKey] && !this.board[rank][3] && !this.board[rank][2] && !this.board[rank][1]) {
+      if (!this.isAttacked(rank, 3, opp) && !this.isAttacked(rank, 2, opp)) {
+        const rookPiece = this.board[rank][0];
+        if (rookPiece && rookPiece.type === ROOK && rookPiece.color === color) {
+          moves.push({ fromR: r, fromF: f, toR: rank, toF: 2, castling: 'q' });
+        }
+      }
+    }
+  }
+
+  // توليد الحركات القانونية الكاملة
+  generateLegalMoves(color) {
+    const pseudo = this.generatePseudoMoves(color);
+    return pseudo.filter(move => {
+      this.applyMove(move);
+      const legal = !this.inCheck(color);
+      this.undoMove();
+      return legal;
+    });
+  }
+
+  // التحقق من وجود أي حركة قانونية
+  hasLegalMoves(color) {
+    return this.generateLegalMoves(color).length > 0;
+  }
+
+  // تطبيق نقلة (داخلي، للاختبار)
+  applyMove(move) {
+    const piece = this.board[move.fromR][move.fromF];
+    const captured = this.board[move.toR][move.toF] || (move.enPassant ? { type: PAWN, color: opponent(piece.color) } : null);
+
+    const record = {
+      move,
+      piece,
+      captured,
+      castling: { ...this.castling },
+      enPassant: this.enPassant ? { ...this.enPassant } : null,
+      halfMoves: this.halfMoves
+    };
+
+    // تحريك القطعة
+    this.board[move.toR][move.toF] = piece;
+    this.board[move.fromR][move.fromF] = null;
+
+    // en passant capture
+    if (move.enPassant) {
+      const capturedR = piece.color === WHITE ? move.toR + 1 : move.toR - 1;
+      this.board[capturedR][move.toF] = null;
+    }
+
+    // الترقية
+    if (move.promo) {
+      this.board[move.toR][move.toF] = { type: move.promo, color: piece.color };
     }
 
     // التبييت
-    const opponentColor = color === WHITE ? BLACK : WHITE;
-    const kingSideRookFile = 7;
-    const queenSideRookFile = 0;
-    const homeRank = color === WHITE ? 7 : 0;
-
-    if (rank === homeRank && file === 4 && !this.isInCheck(color)) {
-      const kingSide = color === WHITE ? 'wK' : 'bK';
-      const queenSide = color === WHITE ? 'wQ' : 'bQ';
-
-      // تبييت جهة الملك
-      if (this.castlingRights[kingSide]) {
-        if (!this.board[homeRank][5] && !this.board[homeRank][6]) {
-          if (!this.isSquareAttacked(homeRank, 5, opponentColor) &&
-              !this.isSquareAttacked(homeRank, 6, opponentColor)) {
-            const rookPiece = this.board[homeRank][kingSideRookFile];
-            if (rookPiece && rookPiece.type === PIECE_ROOK && rookPiece.color === color) {
-              moves.push({
-                fromRank: rank, fromFile: file, toRank: homeRank, toFile: 6,
-                castling: 'kingside'
-              });
-            }
-          }
-        }
-      }
-
-      // تبييت جهة الملكة
-      if (this.castlingRights[queenSide]) {
-        if (!this.board[homeRank][3] && !this.board[homeRank][2] && !this.board[homeRank][1]) {
-          if (!this.isSquareAttacked(homeRank, 3, opponentColor) &&
-              !this.isSquareAttacked(homeRank, 2, opponentColor)) {
-            const rookPiece = this.board[homeRank][queenSideRookFile];
-            if (rookPiece && rookPiece.type === PIECE_ROOK && rookPiece.color === color) {
-              moves.push({
-                fromRank: rank, fromFile: file, toRank: homeRank, toFile: 2,
-                castling: 'queenside'
-              });
-            }
-          }
-        }
-      }
-    }
-  }
-
-  // تنفيذ نقلة بدون التحقق من الصحة (للاستخدام الداخلي)
-  makeMoveWithoutValidation(move) {
-    const piece = this.board[move.fromRank][move.fromFile];
-    const capturedPiece = this.board[move.toRank][move.toFile];
-
-    // تحريك القطعة
-    this.board[move.toRank][move.toFile] = piece;
-    this.board[move.fromRank][move.fromFile] = null;
-
-    // معالجة الأكل بالتجاوز
-    if (move.enPassant) {
-      const capturedPawnRank = this.turn === WHITE ? move.toRank + 1 : move.toRank - 1;
-      this.board[capturedPawnRank][move.toFile] = null;
-    }
-
-    // معالجة الترقية
-    if (move.promotion) {
-      this.board[move.toRank][move.toFile] = { type: move.promotion, color: piece.color };
-    }
-
-    // معالجة التبييت
-    if (move.castling === 'kingside') {
-      const homeRank = move.toRank;
-      this.board[homeRank][5] = this.board[homeRank][7];
-      this.board[homeRank][7] = null;
-    } else if (move.castling === 'queenside') {
-      const homeRank = move.toRank;
-      this.board[homeRank][3] = this.board[homeRank][0];
-      this.board[homeRank][0] = null;
+    if (move.castling === 'k') {
+      const rank = move.toR;
+      this.board[rank][5] = this.board[rank][7];
+      this.board[rank][7] = null;
+    } else if (move.castling === 'q') {
+      const rank = move.toR;
+      this.board[rank][3] = this.board[rank][0];
+      this.board[rank][0] = null;
     }
 
     // تحديث حقوق التبييت
-    if (piece.type === PIECE_KING) {
-      if (piece.color === WHITE) {
-        this.castlingRights.wK = false;
-        this.castlingRights.wQ = false;
-      } else {
-        this.castlingRights.bK = false;
-        this.castlingRights.bQ = false;
-      }
+    if (piece.type === KING) {
+      if (piece.color === WHITE) { this.castling.wK = false; this.castling.wQ = false; }
+      else { this.castling.bK = false; this.castling.bQ = false; }
     }
-    if (piece.type === PIECE_ROOK) {
-      if (piece.color === WHITE) {
-        if (move.fromRank === 7 && move.fromFile === 7) this.castlingRights.wK = false;
-        if (move.fromRank === 7 && move.fromFile === 0) this.castlingRights.wQ = false;
-      } else {
-        if (move.fromRank === 0 && move.fromFile === 7) this.castlingRights.bK = false;
-        if (move.fromRank === 0 && move.fromFile === 0) this.castlingRights.bQ = false;
-      }
+    if (piece.type === ROOK) {
+      if (move.fromR === 7 && move.fromF === 0) this.castling.wQ = false;
+      if (move.fromR === 7 && move.fromF === 7) this.castling.wK = false;
+      if (move.fromR === 0 && move.fromF === 0) this.castling.bQ = false;
+      if (move.fromR === 0 && move.fromF === 7) this.castling.bK = false;
     }
-    // إذا أكل رخ في زاويته
-    if (move.toRank === 7 && move.toFile === 7) this.castlingRights.wK = false;
-    if (move.toRank === 7 && move.toFile === 0) this.castlingRights.wQ = false;
-    if (move.toRank === 0 && move.toFile === 7) this.castlingRights.bK = false;
-    if (move.toRank === 0 && move.toFile === 0) this.castlingRights.bQ = false;
+    // إذا أُكل رخ في زاويته
+    if (move.toR === 7 && move.toF === 0) this.castling.wQ = false;
+    if (move.toR === 7 && move.toF === 7) this.castling.wK = false;
+    if (move.toR === 0 && move.toF === 0) this.castling.bQ = false;
+    if (move.toR === 0 && move.toF === 7) this.castling.bK = false;
 
     // تحديث en passant
-    this.enPassantTarget = null;
-    if (piece.type === PIECE_PAWN && Math.abs(move.toRank - move.fromRank) === 2) {
-      const epRank = (move.fromRank + move.toRank) / 2;
-      this.enPassantTarget = { rank: epRank, file: move.fromFile };
+    this.enPassant = null;
+    if (piece.type === PAWN && Math.abs(move.toR - move.fromR) === 2) {
+      this.enPassant = { rank: (move.fromR + move.toR) / 2, file: move.fromF };
     }
 
-    // تحدعداد النقلات النصفية
-    if (piece.type === PIECE_PAWN || capturedPiece || move.enPassant) {
-      this.halfMoveClock = 0;
+    // تحديث عداد النقلات النصفية
+    if (piece.type === PAWN || captured) {
+      this.halfMoves = 0;
     } else {
-      this.halfMoveClock++;
+      this.halfMoves++;
     }
 
-    // تبديل الدور
-    if (this.turn === BLACK) {
-      this.fullMoveNumber++;
-    }
-    this.turn = this.turn === WHITE ? BLACK : WHITE;
+    // تغيير الدور
+    if (this.turn === BLACK) this.fullMove++;
+    this.turn = opponent(this.turn);
+
+    this.history.push(record);
   }
 
-  // تنفيذ نقلة كاملة مع التحقق من الصحة وتحديث الحالة
+  // تنفيذ نقلة كاملة (مع التحقق من انتهاء اللعبة)
   makeMove(move) {
-    const piece = this.board[move.fromRank][move.fromFile];
-    const capturedPiece = this.board[move.toRank][move.toFile];
-    const isCapture = !!(capturedPiece || move.enPassant);
-    const isPawnMove = piece.type === PIECE_PAWN;
-
-    // حفظ معلومات النقلة للسجل
-    const moveRecord = {
-      move: move,
-      piece: { ...piece },
-      captured: capturedPiece ? { ...capturedPiece } : (move.enPassant ? { type: PIECE_PAWN, color: this.turn === WHITE ? BLACK : WHITE } : null),
-      castlingRights: { ...this.castlingRights },
-      enPassantTarget: this.enPassantTarget ? { ...this.enPassantTarget } : null,
-      halfMoveClock: this.halfMoveClock,
-      fullMoveNumber: this.fullMoveNumber,
-      isCapture: isCapture,
-      isPawnMove: isPawnMove,
-      isCastling: !!move.castling,
-      isPromotion: !!move.promotion,
-      prevPositionKey: this.currentPositionKey
-    };
-
-    // تنفيذ النقلة
-    this.makeMoveWithoutValidation(move);
-
-    // تحديث مفتاح الموقع وعداد التكرار
-    this.currentPositionKey = this.getPositionKey();
-    this.positionCount[this.currentPositionKey] = (this.positionCount[this.currentPositionKey] || 0) + 1;
-
-    this.moveHistory.push(moveRecord);
-
-    // التحقق من انتهاء اللعبة
-    this.checkGameEnd();
+    this.applyMove(move);
+    this.updatePositionKey();
+    this.checkEndConditions();
   }
 
   // التراجع عن آخر نقلة
   undoMove() {
-    if (this.moveHistory.length === 0) return;
-
-    const record = this.moveHistory.pop();
+    if (this.history.length === 0) return;
+    const record = this.history.pop();
     const move = record.move;
 
-    // تقليل عداد التكرار
-    this.positionCount[this.currentPositionKey]--;
-    if (this.positionCount[this.currentPositionKey] <= 0) {
-      delete this.positionCount[this.currentPositionKey];
-    }
-    this.currentPositionKey = record.prevPositionKey;
-
-    // إعادة القطعة المنقولة
-    this.board[move.fromRank][move.fromFile] = record.piece;
-    this.board[move.toRank][move.toFile] = record.captured;
-
-    // إعادة الأكل بالتجاوز
-    if (move.enPassant) {
-      const capturedPawnRank = record.piece.color === WHITE ? move.toRank + 1 : move.toRank - 1;
-      this.board[capturedPawnRank][move.toFile] = { type: PIECE_PAWN, color: record.piece.color === WHITE ? BLACK : WHITE };
-      this.board[move.toRank][move.toFile] = null;
-    }
-
-    // إعادة التبييت
-    if (move.castling === 'kingside') {
-      const homeRank = move.toRank;
-      this.board[homeRank][7] = this.board[homeRank][5];
-      this.board[homeRank][5] = null;
-    } else if (move.castling === 'queenside') {
-      const homeRank = move.toRank;
-      this.board[homeRank][0] = this.board[homeRank][3];
-      this.board[homeRank][3] = null;
-    }
-
-    // استعادة الحالة
-    this.castlingRights = record.castlingRights;
-    this.enPassantTarget = record.enPassantTarget;
-    this.halfMoveClock = record.halfMoveClock;
-    this.fullMoveNumber = record.fullMoveNumber;
-    this.turn = record.piece.color;
     this.gameOver = false;
-    this.gameResult = null;
-    this.gameResultReason = '';
+    this.result = null;
+    this.reason = '';
+
+    // استعادة القطعة
+    this.board[move.fromR][move.fromF] = record.piece;
+    this.board[move.toR][move.toF] = record.captured || null;
+
+    // استعادة en passant capture
+    if (move.enPassant) {
+      const capturedR = record.piece.color === WHITE ? move.toR + 1 : move.toR - 1;
+      this.board[capturedR][move.toF] = { type: PAWN, color: opponent(record.piece.color) };
+      this.board[move.toR][move.toF] = null;
+    }
+
+    // استعادة التبييت
+    if (move.castling === 'k') {
+      const rank = move.toR;
+      this.board[rank][7] = this.board[rank][5];
+      this.board[rank][5] = null;
+    } else if (move.castling === 'q') {
+      const rank = move.toR;
+      this.board[rank][0] = this.board[rank][3];
+      this.board[rank][3] = null;
+    }
+
+    // استعادة الخصائص
+    this.castling = record.castling;
+    this.enPassant = record.enPassant;
+    this.halfMoves = record.halfMoves;
+    this.turn = record.piece.color;
+    if (this.turn === WHITE && this.fullMove > 1) this.fullMove--;
   }
 
-  // التحقق من انتهاء اللعبة
-  checkGameEnd() {
-    const legalMoves = this.generateLegalMoves(this.turn);
+  // تحديث مفتاح الموقع للتكرار
+  updatePositionKey() {
+    const key = this.positionKey();
+    this.posKeys.push(key);
+    this.posCount[key] = (this.posCount[key] || 0) + 1;
+  }
 
-    if (legalMoves.length === 0) {
+  positionKey() {
+    let k = this.toFEN().split(' ').slice(0, 4).join(' ');
+    return k;
+  }
+
+  // التحقق من شروط نهاية اللعبة
+  checkEndConditions() {
+    const legal = this.hasLegalMoves(this.turn);
+    const inCheck = this.inCheck(this.turn);
+
+    if (!legal) {
       this.gameOver = true;
-      if (this.isInCheck(this.turn)) {
-        // كش مات
-        const winner = this.turn === WHITE ? BLACK : WHITE;
-        this.gameResult = winner === WHITE ? 'white' : 'black';
-        this.gameResultReason = 'checkmate';
+      if (inCheck) {
+        this.result = this.turn === WHITE ? 'black' : 'white';
+        this.reason = 'checkmate';
       } else {
-        // تعادل (Stalemate)
-        this.gameResult = 'draw';
-        this.gameResultReason = 'stalemate';
+        this.result = 'draw';
+        this.reason = 'stalemate';
       }
       return;
     }
 
     // قاعدة 50 نقلة
-    if (this.halfMoveClock >= 100) {
+    if (this.halfMoves >= 100) {
       this.gameOver = true;
-      this.gameResult = 'draw';
-      this.gameResultReason = 'fifty-move';
+      this.result = 'draw';
+      this.reason = 'fifty-move';
       return;
     }
 
     // التكرار الثلاثي
-    if (this.positionCount[this.currentPositionKey] >= 3) {
+    const currentKey = this.posKeys[this.posKeys.length - 1];
+    if (this.posCount[currentKey] >= 3) {
       this.gameOver = true;
-      this.gameResult = 'draw';
-      this.gameResultReason = 'threefold-repetition';
+      this.result = 'draw';
+      this.reason = 'threefold';
       return;
     }
 
     // المادة غير الكافية
-    if (this.isInsufficientMaterial()) {
+    if (this.insufficientMaterial()) {
       this.gameOver = true;
-      this.gameResult = 'draw';
-      this.gameResultReason = 'insufficient-material';
+      this.result = 'draw';
+      this.reason = 'insufficient';
       return;
     }
   }
 
-  // التحقق من المادة غير الكافية
-  isInsufficientMaterial() {
+  insufficientMaterial() {
     const pieces = { w: [], b: [] };
     for (let r = 0; r < 8; r++) {
       for (let f = 0; f < 8; f++) {
-        const piece = this.board[r][f];
-        if (piece) {
-          pieces[piece.color].push(piece);
-        }
+        const p = this.board[r][f];
+        if (p) pieces[p.color].push(p);
       }
     }
-
-    const whitePieces = pieces[WHITE];
-    const blackPieces = pieces[BLACK];
-
-    // ملك ضد ملك
-    if (whitePieces.length === 1 && blackPieces.length === 1) return true;
-
-    // ملك وفيل ضد ملك
-    if (whitePieces.length === 1 && blackPieces.length === 2 && blackPieces.some(p => p.type === PIECE_BISHOP)) return true;
-    if (blackPieces.length === 1 && whitePieces.length === 2 && whitePieces.some(p => p.type === PIECE_BISHOP)) return true;
-
-    // ملك وحصان ضد ملك
-    if (whitePieces.length === 1 && blackPieces.length === 2 && blackPieces.some(p => p.type === PIECE_KNIGHT)) return true;
-    if (blackPieces.length === 1 && whitePieces.length === 2 && whitePieces.some(p => p.type === PIECE_KNIGHT)) return true;
-
-    // ملك وفيل ضد ملك وفيل (نفس اللون)
-    if (whitePieces.length === 2 && blackPieces.length === 2) {
-      const wBishop = whitePieces.find(p => p.type === PIECE_BISHOP);
-      const bBishop = blackPieces.find(p => p.type === PIECE_BISHOP);
-      if (wBishop && bBishop) {
-        // التحقق من لون المربعات (معقد، نبسط)
-        return true;
+    const wp = pieces[WHITE], bp = pieces[BLACK];
+    // ملك فقط
+    if (wp.length === 1 && bp.length === 1) return true;
+    // ملك + فيل أو حصان
+    if (wp.length === 1 && bp.length === 2) {
+      if (bp.some(p => p.type === BISHOP || p.type === KNIGHT)) return true;
+    }
+    if (bp.length === 1 && wp.length === 2) {
+      if (wp.some(p => p.type === BISHOP || p.type === KNIGHT)) return true;
+    }
+    // ملك + فيل ضد ملك + فيل (نفس اللون)
+    if (wp.length === 2 && bp.length === 2) {
+      const wb = wp.find(p => p.type === BISHOP);
+      const bb = bp.find(p => p.type === BISHOP);
+      if (wb && bb) {
+        const wbSq = this.getBishopSquareColor(WHITE);
+        const bbSq = this.getBishopSquareColor(BLACK);
+        if (wbSq === bbSq) return true;
       }
     }
-
     return false;
   }
 
-  // تحويل إحداثيات الرقعة إلى ترميز جبري (مثل e2e4)
-  moveToAlgebraic(move) {
-    const fromFile = FILES[move.fromFile];
-    const fromRank = RANKS[move.fromRank];
-    const toFile = FILES[move.toFile];
-    const toRank = RANKS[move.toRank];
-    let alg = fromFile + fromRank + toFile + toRank;
-    if (move.promotion) {
-      alg += PGN_SYMBOLS[move.promotion].toLowerCase() || 'q';
-    }
-    return alg;
-  }
-
-  // تحويل النقلة إلى ترميز PGN
-  moveToPGN(move) {
-    const piece = this.board[move.fromRank] ? this.board[move.fromRank][move.fromFile] : null;
-    if (!piece) return '';
-
-    const pgnSymbol = PGN_SYMBOLS[piece.type];
-    const toFile = FILES[move.toFile];
-    const toRank = RANKS[move.toRank];
-    let pgn = '';
-
-    if (move.castling === 'kingside') return 'O-O';
-    if (move.castling === 'queenside') return 'O-O-O';
-
-    pgn += pgnSymbol;
-
-    // تحديد مصدر النقلة إذا لزم الأمر
-    if (piece.type !== PIECE_PAWN) {
-      const otherPieces = [];
-      for (let r = 0; r < 8; r++) {
-        for (let f = 0; f < 8; f++) {
-          const p = this.board[r][f];
-          if (p && p.type === piece.type && p.color === piece.color && !(r === move.fromRank && f === move.fromFile)) {
-            const legalMoves = this.generatePseudoLegalMoves(piece.color);
-            for (const m of legalMoves) {
-              if (m.toRank === move.toRank && m.toFile === move.toFile &&
-                  m.fromRank === r && m.fromFile === f) {
-                otherPieces.push({ rank: r, file: f });
-              }
-            }
-          }
-        }
-      }
-      if (otherPieces.length > 0) {
-        const fromFile = FILES[move.fromFile];
-        const fromRank = RANKS[move.fromRank];
-        const sameFile = otherPieces.some(p => p.file === move.fromFile);
-        const sameRank = otherPieces.some(p => p.rank === move.fromRank);
-        if (!sameFile) {
-          pgn += fromFile;
-        } else if (!sameRank) {
-          pgn += fromRank;
-        } else {
-          pgn += fromFile + fromRank;
+  getBishopSquareColor(color) {
+    for (let r = 0; r < 8; r++) {
+      for (let f = 0; f < 8; f++) {
+        const p = this.board[r][f];
+        if (p && p.type === BISHOP && p.color === color) {
+          return (r + f) % 2;
         }
       }
     }
-
-    if (move.capture || move.enPassant) {
-      if (piece.type === PIECE_PAWN) {
-        pgn += FILES[move.fromFile];
-      }
-      pgn += 'x';
-    }
-
-    pgn += toFile + toRank;
-
-    if (move.promotion) {
-      pgn += '=' + PGN_SYMBOLS[move.promotion];
-    }
-
-    // إضافة علامة الكش أو الكش مات (سنتحقق لاحقاً)
-    const cloned = this.clone();
-    cloned.makeMoveWithoutValidation(move);
-    if (cloned.isInCheck(cloned.turn)) {
-      const legalMoves = cloned.generateLegalMoves(cloned.turn);
-      if (legalMoves.length === 0) {
-        pgn += '#';
-      } else {
-        pgn += '+';
-      }
-    }
-
-    return pgn;
+    return -1;
   }
 }
 
 // ---------- محرك الذكاء الاصطناعي ----------
 class ChessAI {
   constructor() {
-    this.maxDepth = 4;
-    this.nodesSearched = 0;
+    this.maxDepth = 5;
+    this.nodes = 0;
   }
 
-  // البحث عن أفضل نقلة
-  findBestMove(gameState) {
-    this.nodesSearched = 0;
-    const legalMoves = gameState.generateLegalMoves(gameState.turn);
-    if (legalMoves.length === 0) return null;
+  findBestMove(state) {
+    this.nodes = 0;
+    const legal = state.generateLegalMoves(state.turn);
+    if (legal.length === 0) return null;
+    if (legal.length === 1) return legal[0];
 
-    // ترتيب النقلات لتحسين التقليم
-    this.orderMoves(legalMoves, gameState);
+    const isMax = state.turn === WHITE;
+    let bestMove = legal[0];
+    let bestScore = isMax ? -Infinity : Infinity;
 
-    let bestMove = legalMoves[0];
-    let bestScore = -Infinity;
-    const alpha = -Infinity;
-    const beta = Infinity;
-    const isMaximizing = gameState.turn === WHITE;
+    // ترتيب الحركات
+    this.orderMoves(legal, state);
 
-    for (const move of legalMoves) {
-      const cloned = gameState.clone();
-      cloned.makeMove(move);
+    for (const move of legal) {
+      state.applyMove(move);
+      const score = this.alphaBeta(state, this.maxDepth - 1, -Infinity, Infinity, !isMax);
+      state.undoMove();
 
-      let score;
-      if (cloned.gameOver) {
-        if (cloned.gameResult === 'white') score = 100000;
-        else if (cloned.gameResult === 'black') score = -100000;
-        else score = 0;
+      if (isMax) {
+        if (score > bestScore) { bestScore = score; bestMove = move; }
       } else {
-        score = this.alphaBeta(cloned, this.maxDepth - 1, alpha, beta, !isMaximizing);
-      }
-
-      if (isMaximizing) {
-        if (score > bestScore) {
-          bestScore = score;
-          bestMove = move;
-        }
-      } else {
-        if (score < bestScore) {
-          bestScore = score;
-          bestMove = move;
-        }
+        if (score < bestScore) { bestScore = score; bestMove = move; }
       }
     }
-
     return bestMove;
   }
 
-  // خوارزمية Alpha-Beta
-  alphaBeta(gameState, depth, alpha, beta, isMaximizing) {
-    this.nodesSearched++;
-
-    if (depth === 0 || gameState.gameOver) {
-      return this.quiescenceSearch(gameState, alpha, beta, isMaximizing, 3);
+  alphaBeta(state, depth, alpha, beta, isMax) {
+    this.nodes++;
+    if (depth === 0 || state.gameOver) {
+      return this.quiesce(state, alpha, beta, isMax, 4);
     }
 
-    const legalMoves = gameState.generateLegalMoves(gameState.turn);
-    if (legalMoves.length === 0) {
-      if (gameState.isInCheck(gameState.turn)) {
-        return isMaximizing ? -99999 + (this.maxDepth - depth) : 99999 - (this.maxDepth - depth);
-      }
-      return 0;
+    const moves = state.generateLegalMoves(state.turn);
+    if (moves.length === 0) {
+      return state.inCheck(state.turn) ? (isMax ? -99999 : 99999) : 0;
     }
 
-    this.orderMoves(legalMoves, gameState);
+    this.orderMoves(moves, state);
 
-    if (isMaximizing) {
+    if (isMax) {
       let maxEval = -Infinity;
-      for (const move of legalMoves) {
-        const cloned = gameState.clone();
-        cloned.makeMove(move);
-        const evalScore = this.alphaBeta(cloned, depth - 1, alpha, beta, false);
-        maxEval = Math.max(maxEval, evalScore);
-        alpha = Math.max(alpha, evalScore);
+      for (const move of moves) {
+        state.applyMove(move);
+        const val = this.alphaBeta(state, depth - 1, alpha, beta, false);
+        state.undoMove();
+        maxEval = Math.max(maxEval, val);
+        alpha = Math.max(alpha, val);
         if (beta <= alpha) break;
       }
       return maxEval;
     } else {
       let minEval = Infinity;
-      for (const move of legalMoves) {
-        const cloned = gameState.clone();
-        cloned.makeMove(move);
-        const evalScore = this.alphaBeta(cloned, depth - 1, alpha, beta, true);
-        minEval = Math.min(minEval, evalScore);
-        beta = Math.min(beta, evalScore);
+      for (const move of moves) {
+        state.applyMove(move);
+        const val = this.alphaBeta(state, depth - 1, alpha, beta, true);
+        state.undoMove();
+        minEval = Math.min(minEval, val);
+        beta = Math.min(beta, val);
         if (beta <= alpha) break;
       }
       return minEval;
     }
   }
 
-  // بحث هادئ لتجنب أفق التأثير
-  quiescenceSearch(gameState, alpha, beta, isMaximizing, maxDepth) {
-    const standPat = this.evaluatePosition(gameState);
+  quiesce(state, alpha, beta, isMax, depth) {
+    const standPat = this.evaluate(state);
+    if (depth === 0) return standPat;
 
-    if (maxDepth === 0) return standPat;
-
-    if (isMaximizing) {
+    if (isMax) {
       if (standPat >= beta) return beta;
       if (standPat > alpha) alpha = standPat;
     } else {
@@ -1051,134 +791,84 @@ class ChessAI {
       if (standPat < beta) beta = standPat;
     }
 
-    // الحصول على النقلات الآكلة فقط
-    const legalMoves = gameState.generateLegalMoves(gameState.turn);
-    const captureMoves = legalMoves.filter(m => m.capture || m.enPassant || m.promotion);
-    this.orderMoves(captureMoves, gameState);
+    const moves = state.generateLegalMoves(state.turn).filter(m => m.capture || m.enPassant || m.promo);
+    this.orderMoves(moves, state);
 
-    if (isMaximizing) {
-      for (const move of captureMoves) {
-        const cloned = gameState.clone();
-        cloned.makeMove(move);
-        const score = this.quiescenceSearch(cloned, alpha, beta, false, maxDepth - 1);
-        if (score >= beta) return beta;
-        if (score > alpha) alpha = score;
+    for (const move of moves) {
+      state.applyMove(move);
+      const val = this.quiesce(state, alpha, beta, !isMax, depth - 1);
+      state.undoMove();
+      if (isMax) {
+        if (val >= beta) return beta;
+        if (val > alpha) alpha = val;
+      } else {
+        if (val <= alpha) return alpha;
+        if (val < beta) beta = val;
       }
-      return alpha;
-    } else {
-      for (const move of captureMoves) {
-        const cloned = gameState.clone();
-        cloned.makeMove(move);
-        const score = this.quiescenceSearch(cloned, alpha, beta, true, maxDepth - 1);
-        if (score <= alpha) return alpha;
-        if (score < beta) beta = score;
-      }
-      return beta;
     }
+    return isMax ? alpha : beta;
   }
 
-  // تقييم الموقف
-  evaluatePosition(gameState) {
-    if (gameState.gameOver) {
-      if (gameState.gameResult === 'white') return 100000;
-      if (gameState.gameResult === 'black') return -100000;
+  evaluate(state) {
+    if (state.gameOver) {
+      if (state.result === 'white') return 100000;
+      if (state.result === 'black') return -100000;
       return 0;
     }
-
     let score = 0;
-    let whiteMaterial = 0;
-    let blackMaterial = 0;
-    let endgameWeight = 0;
-
+    let totalMaterial = 0;
     for (let r = 0; r < 8; r++) {
       for (let f = 0; f < 8; f++) {
-        const piece = gameState.board[r][f];
+        const piece = state.board[r][f];
         if (!piece) continue;
-
-        const pieceValue = PIECE_VALUES[piece.type];
-        const tableIndex = piece.color === WHITE ? r * 8 + f : (7 - r) * 8 + f;
-        let tableValue = 0;
-
-        if (PIECE_TABLES[piece.type]) {
-          tableValue = PIECE_TABLES[piece.type][tableIndex];
+        const val = PIECE_VALUES[piece.type];
+        totalMaterial += val;
+        let pstIdx = piece.color === WHITE ? r * 8 + f : (7 - r) * 8 + f;
+        let pstVal = 0;
+        if (PST_TABLES[piece.type]) {
+          pstVal = PST_TABLES[piece.type][pstIdx];
         }
-
-        if (piece.color === WHITE) {
-          score += pieceValue + tableValue;
-          whiteMaterial += pieceValue;
-        } else {
-          score -= pieceValue + tableValue;
-          blackMaterial += pieceValue;
-        }
-
-        if (piece.type !== PIECE_KING && piece.type !== PIECE_PAWN) {
-          endgameWeight++;
-        }
+        const pieceScore = val + pstVal;
+        score += piece.color === WHITE ? pieceScore : -pieceScore;
       }
     }
-
-    // تعديل تقييم الملك حسب مرحلة اللعبة
-    const totalMaterial = whiteMaterial + blackMaterial;
-    const isEndgame = totalMaterial < 3000 || endgameWeight < 6;
-
+    // استخدام جدول الملك حسب المرحلة
+    const endgame = totalMaterial < 3000;
     for (let r = 0; r < 8; r++) {
       for (let f = 0; f < 8; f++) {
-        const piece = gameState.board[r][f];
-        if (!piece || piece.type !== PIECE_KING) continue;
-
-        const tableIndex = piece.color === WHITE ? r * 8 + f : (7 - r) * 8 + f;
-        const midValue = KING_MIDDLE_TABLE[tableIndex];
-        const endValue = KING_END_TABLE[tableIndex];
-
-        if (isEndgame) {
-          if (piece.color === WHITE) {
-            score = score - midValue + endValue;
-          } else {
-            score = score + midValue - endValue;
-          }
+        const piece = state.board[r][f];
+        if (!piece || piece.type !== KING) continue;
+        let idx = piece.color === WHITE ? r * 8 + f : (7 - r) * 8 + f;
+        if (endgame) {
+          score += piece.color === WHITE ? PST_KING_END[idx] : -PST_KING_END[idx];
+        } else {
+          score += piece.color === WHITE ? PST_KING_MID[idx] : -PST_KING_MID[idx];
         }
       }
     }
-
-    // مكافأة الدور الحالي
-    if (gameState.turn === WHITE) {
-      score += 10;
-    } else {
-      score -= 10;
-    }
-
+    // أفضلية بسيطة للدور
+    score += state.turn === WHITE ? 5 : -5;
     return score;
   }
 
-  // ترتيب النقلات لتحسين أداء Alpha-Beta
-  orderMoves(moves, gameState) {
+  orderMoves(moves, state) {
     moves.sort((a, b) => {
-      let scoreA = 0;
-      let scoreB = 0;
-
-      // تفضيل الأكل
-      if (a.capture || a.enPassant) {
-        const victimA = a.capture ? PIECE_VALUES[a.capture.type] : PIECE_VALUES[PIECE_PAWN];
-        const attackerA = gameState.board[a.fromRank][a.fromFile];
-        const attackerValueA = attackerA ? PIECE_VALUES[attackerA.type] : 0;
-        scoreA = 10 * victimA - attackerValueA;
-      }
-      if (b.capture || b.enPassant) {
-        const victimB = b.capture ? PIECE_VALUES[b.capture.type] : PIECE_VALUES[PIECE_PAWN];
-        const attackerB = gameState.board[b.fromRank][b.fromFile];
-        const attackerValueB = attackerB ? PIECE_VALUES[attackerB.type] : 0;
-        scoreB = 10 * victimB - attackerValueB;
-      }
-
-      // تفضيل الترقية
-      if (a.promotion) scoreA += PIECE_VALUES[a.promotion];
-      if (b.promotion) scoreB += PIECE_VALUES[b.promotion];
-
-      // تفضيل التبييت
-      if (a.castling) scoreA += 50;
-      if (b.castling) scoreB += 50;
-
-      return scoreB - scoreA; // ترتيب تنازلي
+      const scoreA = this.moveScore(a, state);
+      const scoreB = this.moveScore(b, state);
+      return scoreB - scoreA;
     });
+  }
+
+  moveScore(move, state) {
+    let score = 0;
+    if (move.capture || move.enPassant) {
+      const victim = move.capture ? PIECE_VALUES[move.capture.type] : PIECE_VALUES[PAWN];
+      const attacker = state.board[move.fromR][move.fromF];
+      const attackerVal = attacker ? PIECE_VALUES[attacker.type] : 0;
+      score = 10 * victim - attackerVal;
+    }
+    if (move.promo) score += PIECE_VALUES[move.promo];
+    if (move.castling) score += 60;
+    return score;
   }
 }
