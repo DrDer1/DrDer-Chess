@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="DrDer Chess">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#1a1a1a">
+  <meta name="description" content="لعبة شطرنج احترافية مع محرك ذكاء اصطناعي متقدم - DrDer Chess">
+  <title>DrDer Chess</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/png" sizes="192x192" href="192.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="512.png">
+  <link rel="apple-touch-icon" href="192.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- الحاوية الرئيسية للتطبيق -->
+  <div id="app-container">
+
+    <!-- ========== شاشة البداية ========== -->
+    <div id="home-screen" class="screen active">
+      <div class="logo-container">
+        <img src="192.png" alt="DrDer Chess" class="logo-icon" width="100" height="100">
+        <h1 class="logo-title">DrDer Chess</h1>
+        <p class="logo-subtitle">شطرنج احترافي بمحرك ذكاء اصطناعي</p>
+      </div>
+
+      <div class="home-buttons">
+        <button id="btn-computer" class="btn btn-primary">
+          ⚡ ضد الكمبيوتر
+        </button>
+        <button id="btn-two-player" class="btn btn-secondary">
+          👥 لاعب ضد لاعب
+        </button>
+        <button id="btn-settings" class="btn btn-secondary">
+          ⚙️ الإعدادات
+        </button>
+        <button id="btn-continue" class="btn btn-secondary" style="display: none;">
+          ▶️ متابعة اللعبة المحفوظة
+        </button>
+      </div>
+    </div>
+
+    <!-- ========== شاشة اللعب ========== -->
+    <div id="game-screen" class="screen">
+      <!-- شريط الحالة العلوي -->
+      <div class="game-status-bar">
+        <div class="status-info">
+          <span id="status-icon" class="status-icon">⚪</span>
+          <span id="status-text" class="status-text">دور الأبيض</span>
+        </div>
+        <button id="btn-moves-log" class="btn-moves-log" title="سجل النقلات">
+          📋 النقلات
+        </button>
+      </div>
+
+      <!-- الرقعة -->
+      <div class="board-wrapper">
+        <div id="chess-board">
+          <!-- سيتم إنشاء الرقعة ديناميكياً عبر JavaScript -->
+        </div>
+      </div>
+
+      <!-- شريط الأزرار السفلي -->
+      <div class="game-actions-bar">
+        <button id="btn-home" class="btn btn-secondary" title="الشاشة الرئيسية">
+          🏠 الرئيسية
+        </button>
+        <button id="btn-save" class="btn btn-secondary" title="حفظ اللعبة">
+          💾 حفظ
+        </button>
+        <button id="btn-restart" class="btn btn-danger" title="إعادة اللعب">
+          🔄 إعادة
+        </button>
+      </div>
+    </div>
+
+    <!-- ========== شاشة نهاية اللعبة ========== -->
+    <div id="game-over-screen" class="screen">
+      <span id="game-over-icon" class="game-over-icon">🏆</span>
+      <h2 id="game-over-title" class="game-over-title">الأبيض يفوز!</h2>
+      <p id="game-over-reason" class="game-over-reason">كش مات</p>
+
+      <div class="game-over-buttons">
+        <button id="btn-play-again" class="btn btn-primary">
+          🔄 إعادة اللعب
+        </button>
+        <button id="btn-game-over-home" class="btn btn-secondary">
+          🏠 الشاشة الرئيسية
+        </button>
+      </div>
+    </div>
+
+    <!-- ========== شاشة الإعدادات ========== -->
+    <div id="settings-screen" class="screen">
+      <div class="settings-panel">
+        <h3>⚙️ الإعدادات</h3>
+
+        <div class="setting-item">
+          <span class="setting-label">🔊 الصوت</span>
+          <label class="toggle-switch">
+            <input type="checkbox" id="toggle-sound" checked>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+
+        <div class="setting-item">
+          <span class="setting-label">📍 الإحداثيات</span>
+          <label class="toggle-switch">
+            <input type="checkbox" id="toggle-coordinates" checked>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+
+        <div class="setting-item">
+          <span class="setting-label">👣 الحركات القانونية</span>
+          <label class="toggle-switch">
+            <input type="checkbox" id="toggle-legal-moves" checked>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+
+        <button id="btn-reset-settings" class="btn btn-secondary" style="margin-top: 12px; width: 100%;">
+          🔄 إعادة الإعدادات الافتراضية
+        </button>
+
+        <button id="btn-settings-back" class="btn btn-primary" style="width: 100%;">
+          ↩️ رجوع
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== نافذة سجل النقلات ========== -->
+  <div id="moves-log-overlay">
+    <div class="moves-log-panel">
+      <div class="moves-log-header">
+        <h3>📋 سجل النقلات</h3>
+        <button id="btn-close-moves-log" class="btn btn-small btn-secondary">✕</button>
+      </div>
+
+      <div id="moves-log-content" class="moves-log-content">
+        لا توجد نقلات بعد
+      </div>
+
+      <div class="moves-log-actions">
+        <button id="btn-copy-pgn" class="btn btn-secondary">
+          📋 نسخ PGN
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== نافذة استعادة اللعبة ========== -->
+  <div id="restore-overlay">
+    <div class="restore-panel">
+      <h3>💾 استعادة اللعبة</h3>
+      <p>توجد لعبة غير مكتملة. هل تريد استكمالها؟</p>
+      <div class="restore-buttons">
+        <button id="btn-restore-yes" class="btn btn-primary">
+          ▶️ متابعة اللعب
+        </button>
+        <button id="btn-restore-no" class="btn btn-danger">
+          🗑️ تجاهل
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== نافذة ترقية البيدق ========== -->
+  <div id="promotion-overlay">
+    <div id="promotion-pieces" class="promotion-panel">
+      <!-- سيتم إنشاء خيارات الترقية ديناميكياً -->
+    </div>
+  </div>
+
+  <!-- ملفات JavaScript -->
+  <script src="engine.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
