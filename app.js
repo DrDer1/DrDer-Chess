@@ -1,1042 +1,598 @@
 /* ============================================
    DrDer Chess - التطبيق الرئيسي
-   يدير واجهة المستخدم والتكامل مع المحرك
    ============================================ */
+'use strict';
 
-// ---------- إدارة الأصوات ----------
+/************* إدارة الصوت *************/
 class SoundManager {
   constructor() {
+    this.ctx = null;
     this.enabled = true;
-    this.moveSound = null;
-    this.captureSound = null;
-    this.specialSound = null;
-    this.audioContext = null;
-    this.initAudioContext();
-  }
-
-  // إنشاء سياق الصوت وتوليد الأصوات الخشبية
-  initAudioContext() {
     try {
-      this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      this.ctx = new (window.AudioContext || window.webkitAudioContext)();
     } catch (e) {
-      console.warn('متصفحك لا يدعم Web Audio API');
       this.enabled = false;
     }
   }
 
-  // توليد صوت نقرة خشبية
-  playMove() {
-    if (!this.enabled || !this.audioContext) return;
-    this.playWoodClick(800, 0.08);
-  }
-
-  // توليد صوت أكل (أقوى)
-  playCapture() {
-    if (!this.enabled || !this.audioContext) return;
-    this.playWoodClick(500, 0.15);
-    setTimeout(() => this.playWoodClick(300, 0.1), 50);
-  }
-
-  // توليد صوت التبييت أو الترقية
-  playSpecial() {
-    if (!this.enabled || !this.audioContext) return;
-    this.playWoodClick(1000, 0.1);
-    setTimeout(() => this.playWoodClick(1200, 0.1), 80);
-  }
-
-  // دالة مساعدة لتوليد صوت خشبي
-  playWoodClick(frequency, duration) {
-    if (!this.audioContext) return;
-    const now = this.audioContext.currentTime;
-    const osc = this.audioContext.createOscillator();
-    const gain = this.audioContext.createGain();
-
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(frequency, now);
-    osc.frequency.exponentialRampToValueAtTime(frequency * 0.3, now + duration);
-
-    gain.gain.setValueAtTime(0.3, now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
-
-    osc.connect(gain);
-    gain.connect(this.audioContext.destination);
-
-    osc.start(now);
-    osc.stop(now + duration);
-  }
-
-  // استئناف سياق الصوت بعد تفاعل المستخدم
   resume() {
-    if (this.audioContext && this.audioContext.state === 'suspended') {
-      this.audioContext.resume();
-    }
+    if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
   }
+
+  play(freq, dur, vol = 0.25) {
+    if (!this.enabled || !this.ctx) return;
+    const t = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(freq, t);
+    osc.frequency.exponentialRampToValueAtTime(freq * 0.2, t + dur);
+    gain.gain.setValueAtTime(vol, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    osc.start(t);
+    osc.stop(t + dur);
+  }
+
+  moveSound() { this.play(700, 0.09, 0.2); }
+  captureSound() { this.play(400, 0.14, 0.35); setTimeout(() => this.play(250, 0.1, 0.25), 50); }
+  specialSound() { this.play(900, 0.1, 0.3); setTimeout(() => this.play(1100, 0.12, 0.3), 70); }
 }
 
-// ---------- إدارة التطبيق ----------
-class DrDerChessApp {
+/************* التطبيق *************/
+class DrDerChess {
   constructor() {
-    // المكونات الأساسية
-    this.chessState = new ChessState();
-    this.chessAI = new ChessAI();
-    this.soundManager = new SoundManager();
+    this.state = new ChessState();
+    this.ai = new ChessAI();
+    this.sound = new SoundManager();
 
-    // حالة اللعبة
-    this.gameMode = null; // 'computer' أو 'two-player'
-    this.playerColor = null; // اللون الذي يلعبه المستخدم في وضع الكمبيوتر
-    this.selectedSquare = null;
-    this.legalMovesForSelected = [];
-    this.isAnimating = false;
-    this.lastMove = null; // { fromRank, fromFile, toRank, toFile }
-    this.showCoordinates = true;
-    this.showLegalMoves = true;
-    this.gameSaved = false;
+    this.mode = null;        // 'computer' | 'two-player'
+    this.playerColor = null; // في وضع الكمبيوتر
+    this.selected = null;
+    this.legalMoves = [];
+    this.lastMove = null;
+    this.showCoords = true;
+    this.showLegal = true;
+    this.saved = false;
 
-    // عناصر DOM
-    this.screens = {};
-    this.boardElement = null;
-    this.squares = [];
-
-    // التهيئة
-    this.init();
-  }
-
-  // التهيئة الرئيسية
-  init() {
-    this.cacheDOM();
+    this.dom = {};
+    this.cacheDom();
     this.loadSettings();
-    this.setupEventListeners();
-    this.registerServiceWorker();
-    this.checkForSavedGame();
-    this.showScreen('home-screen');
+    this.bindEvents();
+    this.registerSW();
+    this.checkRestore();
+    this.show('home');
   }
 
-  // تخزين مراجع DOM
-  cacheDOM() {
-    this.screens.home = document.getElementById('home-screen');
-    this.screens.game = document.getElementById('game-screen');
-    this.screens.gameOver = document.getElementById('game-over-screen');
-    this.screens.settings = document.getElementById('settings-screen');
-
-    this.boardElement = document.getElementById('chess-board');
-    this.statusText = document.getElementById('status-text');
-    this.statusIcon = document.getElementById('status-icon');
-
-    // أزرار الشاشة الرئيسية
-    this.btnComputer = document.getElementById('btn-computer');
-    this.btnTwoPlayer = document.getElementById('btn-two-player');
-    this.btnSettings = document.getElementById('btn-settings');
-    this.btnContinue = document.getElementById('btn-continue');
-
-    // أزرار أثناء اللعب
-    this.btnMovesLog = document.getElementById('btn-moves-log');
-    this.btnHome = document.getElementById('btn-home');
-    this.btnSave = document.getElementById('btn-save');
-    this.btnRestart = document.getElementById('btn-restart');
-
-    // أزرار نهاية اللعبة
-    this.btnPlayAgain = document.getElementById('btn-play-again');
-    this.btnGameOverHome = document.getElementById('btn-game-over-home');
-
-    // أزرار الإعدادات
-    this.btnSettingsBack = document.getElementById('btn-settings-back');
-    this.toggleSound = document.getElementById('toggle-sound');
-    this.toggleCoordinates = document.getElementById('toggle-coordinates');
-    this.toggleLegalMoves = document.getElementById('toggle-legal-moves');
-    this.btnResetSettings = document.getElementById('btn-reset-settings');
-
-    // نافذة سجل النقلات
-    this.movesLogOverlay = document.getElementById('moves-log-overlay');
-    this.movesLogContent = document.getElementById('moves-log-content');
-    this.btnCloseMovesLog = document.getElementById('btn-close-moves-log');
-    this.btnCopyPGN = document.getElementById('btn-copy-pgn');
-
-    // نافذة استعادة اللعبة
-    this.restoreOverlay = document.getElementById('restore-overlay');
-    this.btnRestoreYes = document.getElementById('btn-restore-yes');
-    this.btnRestoreNo = document.getElementById('btn-restore-no');
-
-    // نافذة الترقية
-    this.promotionOverlay = document.getElementById('promotion-overlay');
-    this.promotionPiecesContainer = document.getElementById('promotion-pieces');
-
-    // شاشة نهاية اللعبة
-    this.gameOverTitle = document.getElementById('game-over-title');
-    this.gameOverIcon = document.getElementById('game-over-icon');
-    this.gameOverReason = document.getElementById('game-over-reason');
-  }
-
-  // إعداد مستمعي الأحداث
-  setupEventListeners() {
-    // الشاشة الرئيسية
-    this.btnComputer.addEventListener('click', () => this.startGame('computer'));
-    this.btnTwoPlayer.addEventListener('click', () => this.startGame('two-player'));
-    this.btnSettings.addEventListener('click', () => this.showScreen('settings-screen'));
-    this.btnContinue.addEventListener('click', () => this.restoreGame());
-
-    // أزرار اللعب
-    this.btnMovesLog.addEventListener('click', () => this.showMovesLog());
-    this.btnHome.addEventListener('click', () => this.confirmGoHome());
-    this.btnSave.addEventListener('click', () => this.saveGame());
-    this.btnRestart.addEventListener('click', () => this.confirmRestart());
-
-    // نافذة سجل النقلات
-    this.btnCloseMovesLog.addEventListener('click', () => this.hideMovesLog());
-    this.btnCopyPGN.addEventListener('click', () => this.copyPGN());
-    this.movesLogOverlay.addEventListener('click', (e) => {
-      if (e.target === this.movesLogOverlay) this.hideMovesLog();
-    });
-
-    // نافذة استعادة اللعبة
-    this.btnRestoreYes.addEventListener('click', () => this.restoreGame());
-    this.btnRestoreNo.addEventListener('click', () => this.discardSavedGame());
-
-    // نافذة الترقية
-    this.promotionOverlay.addEventListener('click', (e) => {
-      if (e.target === this.promotionOverlay) {
-        // منع الإغلاق - يجب على المستخدم اختيار قطعة
-      }
-    });
-
-    // شاشة نهاية اللعبة
-    this.btnPlayAgain.addEventListener('click', () => this.startGame(this.gameMode));
-    this.btnGameOverHome.addEventListener('click', () => this.goHome());
-
-    // الإعدادات
-    this.btnSettingsBack.addEventListener('click', () => this.showScreen('home-screen'));
-    this.toggleSound.addEventListener('change', () => this.updateSoundSetting());
-    this.toggleCoordinates.addEventListener('change', () => this.updateCoordinatesSetting());
-    this.toggleLegalMoves.addEventListener('change', () => this.updateLegalMovesSetting());
-    this.btnResetSettings.addEventListener('click', () => this.resetSettings());
-  }
-
-  // تسجيل Service Worker
-  registerServiceWorker() {
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('sw.js')
-        .then((registration) => {
-          console.log('تم تسجيل Service Worker بنجاح:', registration.scope);
-        })
-        .catch((error) => {
-          console.warn('فشل تسجيل Service Worker:', error);
-        });
+  /* ---------- DOM ---------- */
+  cacheDom() {
+    const ids = [
+      'home-screen','game-screen','gameover-screen','settings-screen',
+      'board','status-icon','status-text',
+      'btn-comp','btn-two','btn-settings','btn-continue',
+      'btn-log','btn-home','btn-save','btn-restart',
+      'btn-again','btn-gohome',
+      'btn-sback','toggle-sound','toggle-coords','toggle-legal','btn-reset-settings',
+      'overlay-log','log-content','btn-close-log',
+      'overlay-restore','btn-restore-yes','btn-restore-no',
+      'overlay-promo','promo-pieces',
+      'gameover-icon','gameover-title','gameover-reason'
+    ];
+    for (const id of ids) {
+      const el = document.getElementById(id);
+      if (el) this.dom[id] = el;
     }
   }
 
-  // ---------- إدارة الشاشات ----------
-  showScreen(screenId) {
-    Object.values(this.screens).forEach(screen => {
-      if (screen) screen.classList.remove('active');
+  /* ---------- شاشات ---------- */
+  show(name) {
+    ['home-screen','game-screen','gameover-screen','settings-screen'].forEach(id => {
+      const el = this.dom[id];
+      if (el) el.classList.remove('active');
     });
-    const targetScreen = document.getElementById(screenId);
-    if (targetScreen) {
-      targetScreen.classList.add('active');
-    }
+    const target = this.dom[name + '-screen'];
+    if (target) target.classList.add('active');
   }
 
-  // ---------- إدارة الإعدادات ----------
+  /* ---------- أحداث ---------- */
+  bindEvents() {
+    this.dom['btn-comp']?.addEventListener('click', () => this.start('computer'));
+    this.dom['btn-two']?.addEventListener('click', () => this.start('two-player'));
+    this.dom['btn-settings']?.addEventListener('click', () => this.show('settings'));
+    this.dom['btn-continue']?.addEventListener('click', () => this.restoreSaved());
+
+    this.dom['btn-log']?.addEventListener('click', () => this.openLog());
+    this.dom['btn-home']?.addEventListener('click', () => this.goHome());
+    this.dom['btn-save']?.addEventListener('click', () => this.saveManual());
+    this.dom['btn-restart']?.addEventListener('click', () => this.restart());
+
+    this.dom['btn-close-log']?.addEventListener('click', () => this.closeLog());
+    this.dom['overlay-log']?.addEventListener('click', (e) => { if (e.target === this.dom['overlay-log']) this.closeLog(); });
+
+    this.dom['btn-restore-yes']?.addEventListener('click', () => this.restoreSaved());
+    this.dom['btn-restore-no']?.addEventListener('click', () => this.discardSaved());
+
+    this.dom['btn-again']?.addEventListener('click', () => this.start(this.mode));
+    this.dom['btn-gohome']?.addEventListener('click', () => { this.clearAutoSave(); this.show('home'); });
+
+    this.dom['btn-sback']?.addEventListener('click', () => this.show('home'));
+    this.dom['toggle-sound']?.addEventListener('change', (e) => { this.sound.enabled = e.target.checked; this.saveSettings(); });
+    this.dom['toggle-coords']?.addEventListener('change', (e) => { this.showCoords = e.target.checked; this.saveSettings(); this.renderBoard(); this.renderPieces(); });
+    this.dom['toggle-legal']?.addEventListener('change', (e) => { this.showLegal = e.target.checked; this.saveSettings(); this.clearHighlights(); if (this.selected) this.showLegalMoves(); });
+    this.dom['btn-reset-settings']?.addEventListener('click', () => this.resetSettings());
+  }
+
+  /* ---------- إعدادات ---------- */
   loadSettings() {
     try {
-      const settings = JSON.parse(localStorage.getItem('drder-chess-settings'));
-      if (settings) {
-        this.soundManager.enabled = settings.soundEnabled !== false;
-        this.showCoordinates = settings.showCoordinates !== false;
-        this.showLegalMoves = settings.showLegalMoves !== false;
+      const s = JSON.parse(localStorage.getItem('drder-settings'));
+      if (s) {
+        this.sound.enabled = s.sound !== false;
+        this.showCoords = s.coords !== false;
+        this.showLegal = s.legal !== false;
       }
-    } catch (e) {
-      // استخدام الإعدادات الافتراضية
-    }
-    this.applySettingsToUI();
+    } catch (e) {}
+    if (this.dom['toggle-sound']) this.dom['toggle-sound'].checked = this.sound.enabled;
+    if (this.dom['toggle-coords']) this.dom['toggle-coords'].checked = this.showCoords;
+    if (this.dom['toggle-legal']) this.dom['toggle-legal'].checked = this.showLegal;
   }
 
   saveSettings() {
-    const settings = {
-      soundEnabled: this.soundManager.enabled,
-      showCoordinates: this.showCoordinates,
-      showLegalMoves: this.showLegalMoves
-    };
     try {
-      localStorage.setItem('drder-chess-settings', JSON.stringify(settings));
-    } catch (e) {
-      console.warn('فشل حفظ الإعدادات');
-    }
-  }
-
-  applySettingsToUI() {
-    if (this.toggleSound) this.toggleSound.checked = this.soundManager.enabled;
-    if (this.toggleCoordinates) this.toggleCoordinates.checked = this.showCoordinates;
-    if (this.toggleLegalMoves) this.toggleLegalMoves.checked = this.showLegalMoves;
-  }
-
-  updateSoundSetting() {
-    this.soundManager.enabled = this.toggleSound.checked;
-    this.saveSettings();
-  }
-
-  updateCoordinatesSetting() {
-    this.showCoordinates = this.toggleCoordinates.checked;
-    this.saveSettings();
-    this.renderBoard();
-    this.renderPieces();
-  }
-
-  updateLegalMovesSetting() {
-    this.showLegalMoves = this.toggleLegalMoves.checked;
-    this.saveSettings();
-    if (!this.showLegalMoves) {
-      this.clearHighlights();
-    } else if (this.selectedSquare) {
-      this.highlightLegalMoves();
-    }
+      localStorage.setItem('drder-settings', JSON.stringify({
+        sound: this.sound.enabled,
+        coords: this.showCoords,
+        legal: this.showLegal
+      }));
+    } catch (e) {}
   }
 
   resetSettings() {
-    this.soundManager.enabled = true;
-    this.showCoordinates = true;
-    this.showLegalMoves = true;
+    this.sound.enabled = true;
+    this.showCoords = true;
+    this.showLegal = true;
     this.saveSettings();
-    this.applySettingsToUI();
+    if (this.dom['toggle-sound']) this.dom['toggle-sound'].checked = true;
+    if (this.dom['toggle-coords']) this.dom['toggle-coords'].checked = true;
+    if (this.dom['toggle-legal']) this.dom['toggle-legal'].checked = true;
     this.renderBoard();
     this.renderPieces();
   }
 
-  // ---------- بدء اللعبة ----------
-  startGame(mode) {
-    this.soundManager.resume();
-    this.gameMode = mode;
-    this.chessState.reset();
-    this.selectedSquare = null;
-    this.legalMovesForSelected = [];
+  /* ---------- بدء اللعبة ---------- */
+  start(mode) {
+    this.sound.resume();
+    this.mode = mode;
+    this.state.reset();
+    this.selected = null;
+    this.legalMoves = [];
     this.lastMove = null;
-    this.isAnimating = false;
-    this.gameSaved = false;
+    this.saved = false;
 
-    // اختيار اللون عشوائياً في وضع الكمبيوتر
     if (mode === 'computer') {
       this.playerColor = Math.random() < 0.5 ? WHITE : BLACK;
     } else {
       this.playerColor = null;
     }
 
-    this.showScreen('game-screen');
+    this.show('game');
     this.renderBoard();
     this.renderPieces();
-    this.updateStatusBar();
-
-    // حفظ تلقائي للحالة الابتدائية
+    this.updateStatus();
     this.autoSave();
 
-    // إذا كان الكمبيوتر يبدأ (الأسود) قم بحساب نقلته
     if (mode === 'computer' && this.playerColor === BLACK) {
-      setTimeout(() => this.computerMove(), 500);
+      setTimeout(() => this.computerMove(), 400);
     }
   }
 
-  // ---------- رسم الرقعة ----------
+  /* ---------- الرقعة ---------- */
   renderBoard() {
-    if (!this.boardElement) return;
-    this.boardElement.innerHTML = '';
-    this.squares = [];
-
+    const board = this.dom['board'];
+    if (!board) return;
+    board.innerHTML = '';
     for (let r = 0; r < 8; r++) {
-      this.squares[r] = [];
       for (let f = 0; f < 8; f++) {
-        const square = document.createElement('div');
-        const isLight = (r + f) % 2 === 0;
-        square.className = `square ${isLight ? 'light' : 'dark'}`;
-        square.dataset.rank = r;
-        square.dataset.file = f;
+        const sq = document.createElement('div');
+        sq.className = 'sq ' + ((r + f) % 2 === 0 ? 'light' : 'dark');
+        sq.dataset.r = r;
+        sq.dataset.f = f;
 
-        // إضافة الإحداثيات
-        if (this.showCoordinates) {
+        if (this.showCoords) {
           if (f === 7) {
-            const rankCoord = document.createElement('span');
-            rankCoord.className = 'coordinates coordinates-rank';
-            rankCoord.textContent = RANKS[r];
-            square.appendChild(rankCoord);
+            const rc = document.createElement('span');
+            rc.className = 'coord coord-rank';
+            rc.textContent = RANKS[r];
+            sq.appendChild(rc);
           }
           if (r === 7) {
-            const fileCoord = document.createElement('span');
-            fileCoord.className = 'coordinates coordinates-file';
-            fileCoord.textContent = FILES[f];
-            square.appendChild(fileCoord);
+            const fc = document.createElement('span');
+            fc.className = 'coord coord-file';
+            fc.textContent = FILES[f];
+            sq.appendChild(fc);
           }
         }
 
-        // إضافة مستمع النقر
-        square.addEventListener('click', () => this.onSquareClick(r, f));
-
-        this.boardElement.appendChild(square);
-        this.squares[r][f] = square;
+        sq.addEventListener('click', () => this.onClick(r, f));
+        board.appendChild(sq);
       }
     }
-
-    // إعادة تطبيق التأثيرات
-    this.applyBoardEffects();
+    this.applyEffects();
   }
 
-  // رسم القطع
   renderPieces() {
-    // إزالة القطع الحالية
-    const existingPieces = this.boardElement.querySelectorAll('.piece');
-    existingPieces.forEach(p => p.remove());
-
-    for (let r = 0; r < 8; r++) {
-      for (let f = 0; f < 8; f++) {
-        const piece = this.chessState.board[r][f];
-        if (piece) {
-          const pieceElement = document.createElement('span');
-          pieceElement.className = `piece ${piece.color === WHITE ? 'white-piece' : 'black-piece'}`;
-          pieceElement.textContent = PIECE_SYMBOLS[piece.type][piece.color];
-          pieceElement.dataset.rank = r;
-          pieceElement.dataset.file = f;
-
-          if (this.squares[r] && this.squares[r][f]) {
-            this.squares[r][f].appendChild(pieceElement);
-          }
-        }
+    const board = this.dom['board'];
+    if (!board) return;
+    board.querySelectorAll('.piece').forEach(el => el.remove());
+    const squares = board.querySelectorAll('.sq');
+    squares.forEach(sq => {
+      const r = parseInt(sq.dataset.r), f = parseInt(sq.dataset.f);
+      const piece = this.state.board[r][f];
+      if (piece) {
+        const span = document.createElement('span');
+        span.className = 'piece ' + (piece.color === WHITE ? 'white' : 'black');
+        span.textContent = PIECE_SYMBOLS[piece.type][piece.color];
+        sq.appendChild(span);
       }
-    }
+    });
   }
 
-  // تطبيق تأثيرات الرقعة (آخر نقلة، كش، إلخ)
-  applyBoardEffects() {
-    // مسح التأثيرات السابقة
-    for (let r = 0; r < 8; r++) {
-      for (let f = 0; f < 8; f++) {
-        if (this.squares[r] && this.squares[r][f]) {
-          this.squares[r][f].classList.remove('last-move-from', 'last-move-to', 'king-in-check');
-        }
-      }
-    }
-
-    // إظهار آخر نقلة
+  applyEffects() {
+    const board = this.dom['board'];
+    if (!board) return;
+    board.querySelectorAll('.sq').forEach(sq => {
+      sq.classList.remove('sel','legal','capture','last-from','last-to','check');
+    });
     if (this.lastMove) {
-      const fromSquare = this.squares[this.lastMove.fromRank]?.[this.lastMove.fromFile];
-      const toSquare = this.squares[this.lastMove.toRank]?.[this.lastMove.toFile];
-      if (fromSquare) fromSquare.classList.add('last-move-from');
-      if (toSquare) toSquare.classList.add('last-move-to');
+      const fromSq = board.querySelector(`.sq[data-r="${this.lastMove.fromR}"][data-f="${this.lastMove.fromF}"]`);
+      const toSq = board.querySelector(`.sq[data-r="${this.lastMove.toR}"][data-f="${this.lastMove.toF}"]`);
+      if (fromSq) fromSq.classList.add('last-from');
+      if (toSq) toSq.classList.add('last-to');
     }
-
-    // إظهار الكش على الملك
-    if (!this.chessState.gameOver && this.chessState.isInCheck(this.chessState.turn)) {
-      const kingPos = this.chessState.findKing(this.chessState.turn);
-      if (kingPos && this.squares[kingPos.rank]?.[kingPos.file]) {
-        this.squares[kingPos.rank][kingPos.file].classList.add('king-in-check');
+    if (!this.state.gameOver && this.state.inCheck(this.state.turn)) {
+      const king = this.state.findKing(this.state.turn);
+      if (king) {
+        const kingSq = board.querySelector(`.sq[data-r="${king.rank}"][data-f="${king.file}"]`);
+        if (kingSq) kingSq.classList.add('check');
       }
     }
-
-    // إظهار النقلات القانونية
-    if (this.showLegalMoves && this.selectedSquare) {
-      this.highlightLegalMoves();
-    }
+    if (this.selected && this.showLegal) this.showLegalMoves();
   }
 
-  // مسح التأثيرات
   clearHighlights() {
-    for (let r = 0; r < 8; r++) {
-      for (let f = 0; f < 8; f++) {
-        if (this.squares[r] && this.squares[r][f]) {
-          this.squares[r][f].classList.remove('selected', 'legal-move', 'legal-capture');
-        }
+    const board = this.dom['board'];
+    if (!board) return;
+    board.querySelectorAll('.sq').forEach(sq => {
+      sq.classList.remove('sel','legal','capture');
+    });
+  }
+
+  showLegalMoves() {
+    if (!this.selected || !this.showLegal) return;
+    const board = this.dom['board'];
+    if (!board) return;
+    for (const m of this.legalMoves) {
+      const sq = board.querySelector(`.sq[data-r="${m.toR}"][data-f="${m.toF}"]`);
+      if (sq) {
+        sq.classList.add(m.capture || m.enPassant ? 'capture' : 'legal');
       }
     }
   }
 
-  // إظهار النقلات القانونية للقطعة المحددة
-  highlightLegalMoves() {
-    if (!this.selectedSquare || !this.showLegalMoves) return;
+  /* ---------- النقر ---------- */
+  onClick(r, f) {
+    if (this.state.gameOver) return;
+    if (this.mode === 'computer' && this.state.turn !== this.playerColor) return;
 
-    for (const move of this.legalMovesForSelected) {
-      const square = this.squares[move.toRank]?.[move.toFile];
-      if (square) {
-        if (move.capture || move.enPassant) {
-          square.classList.add('legal-capture');
-        } else {
-          square.classList.add('legal-move');
-        }
-      }
-    }
-  }
+    const piece = this.state.board[r][f];
 
-  // ---------- التعامل مع النقرات ----------
-  onSquareClick(rank, file) {
-    if (this.isAnimating) return;
-    if (this.chessState.gameOver) return;
-
-    // في وضع الكمبيوتر، تأكد من أن دور المستخدم
-    if (this.gameMode === 'computer' && this.chessState.turn !== this.playerColor) return;
-
-    const clickedPiece = this.chessState.board[rank][file];
-
-    // إذا كان هناك قطعة محددة مسبقاً
-    if (this.selectedSquare) {
-      // التحقق مما إذا كانت النقلة قانونية
-      const move = this.legalMovesForSelected.find(
-        m => m.toRank === rank && m.toFile === file
-      );
-
+    if (this.selected) {
+      const move = this.legalMoves.find(m => m.toR === r && m.toF === f);
       if (move) {
-        // التحقق من الترقية
-        if (move.promotion) {
-          this.showPromotionDialog(move);
+        if (move.promo) {
+          this.pendingPromo = move;
+          this.showPromoDialog(move);
           return;
         }
-        this.executeMove(move);
+        this.execute(move);
         return;
       }
-
-      // إذا نقر على قطعة من نفس اللون، قم بتغيير التحديد
-      if (clickedPiece && clickedPiece.color === this.chessState.turn) {
-        this.selectSquare(rank, file);
+      if (piece && piece.color === this.state.turn) {
+        this.select(r, f);
         return;
       }
-
-      // نقر على مربع غير قانوني - إلغاء التحديد
-      this.deselectSquare();
+      this.deselect();
       return;
     }
 
-    // تحديد قطعة جديدة
-    if (clickedPiece && clickedPiece.color === this.chessState.turn) {
-      this.selectSquare(rank, file);
+    if (piece && piece.color === this.state.turn) {
+      this.select(r, f);
     }
   }
 
-  // تحديد مربع
-  selectSquare(rank, file) {
+  select(r, f) {
     this.clearHighlights();
-    this.selectedSquare = { rank, file };
-    this.legalMovesForSelected = this.chessState.generateLegalMoves(this.chessState.turn)
-      .filter(m => m.fromRank === rank && m.fromFile === file);
-
-    if (this.squares[rank] && this.squares[rank][file]) {
-      this.squares[rank][file].classList.add('selected');
+    this.selected = { r, f };
+    this.legalMoves = this.state.generateLegalMoves(this.state.turn).filter(m => m.fromR === r && m.fromF === f);
+    const board = this.dom['board'];
+    if (board) {
+      const sq = board.querySelector(`.sq[data-r="${r}"][data-f="${f}"]`);
+      if (sq) sq.classList.add('sel');
     }
-
-    if (this.showLegalMoves) {
-      this.highlightLegalMoves();
-    }
+    if (this.showLegal) this.showLegalMoves();
   }
 
-  // إلغاء التحديد
-  deselectSquare() {
-    this.selectedSquare = null;
-    this.legalMovesForSelected = [];
+  deselect() {
+    this.selected = null;
+    this.legalMoves = [];
     this.clearHighlights();
-    this.applyBoardEffects();
+    this.applyEffects();
   }
 
-  // ---------- تنفيذ النقلة ----------
-  executeMove(move) {
-    const lastMoveRecord = this.chessState.moveHistory.length > 0
-      ? this.chessState.moveHistory[this.chessState.moveHistory.length - 1]
-      : null;
-    const isCapture = !!(move.capture || move.enPassant);
+  /* ---------- تنفيذ نقلة ---------- */
+  execute(move) {
+    const capture = !!(move.capture || move.enPassant);
+    const special = !!(move.castling || move.promo);
 
-    // تنفيذ النقلة
-    this.chessState.makeMove(move);
-    this.lastMove = { fromRank: move.fromRank, fromFile: move.fromFile, toRank: move.toRank, toFile: move.toFile };
+    this.state.makeMove(move);
+    this.lastMove = { fromR: move.fromR, fromF: move.fromF, toR: move.toR, toF: move.toF };
+    this.deselect();
 
-    // تشغيل الصوت المناسب
-    if (move.castling || move.promotion) {
-      this.soundManager.playSpecial();
-    } else if (isCapture) {
-      this.soundManager.playCapture();
-    } else {
-      this.soundManager.playMove();
-    }
+    if (special) this.sound.specialSound();
+    else if (capture) this.sound.captureSound();
+    else this.sound.moveSound();
 
-    // إلغاء التحديد
-    this.deselectSquare();
-
-    // إعادة رسم الرقعة
     this.renderBoard();
     this.renderPieces();
-    this.updateStatusBar();
-
-    // حفظ تلقائي
+    this.updateStatus();
     this.autoSave();
 
-    // التحقق من نهاية اللعبة
-    if (this.chessState.gameOver) {
-      setTimeout(() => this.showGameOver(), 600);
+    if (this.state.gameOver) {
+      setTimeout(() => this.showGameOver(), 500);
       return;
     }
 
-    // دور الكمبيوتر
-    if (this.gameMode === 'computer' && this.chessState.turn !== this.playerColor) {
-      this.isAnimating = true;
-      setTimeout(() => {
-        this.computerMove();
-      }, 300);
+    if (this.mode === 'computer' && this.state.turn !== this.playerColor) {
+      setTimeout(() => this.computerMove(), 250);
     }
   }
 
-  // نقلة الكمبيوتر
   computerMove() {
-    if (this.chessState.gameOver) {
-      this.isAnimating = false;
-      return;
-    }
+    if (this.state.gameOver) return;
+    const move = this.ai.findBestMove(this.state);
+    if (move) {
+      if (move.promo) move.promo = QUEEN;
+      const capture = !!(move.capture || move.enPassant);
+      const special = !!(move.castling || move.promo);
+      this.state.makeMove(move);
+      this.lastMove = { fromR: move.fromR, fromF: move.fromF, toR: move.toR, toF: move.toF };
 
-    const bestMove = this.chessAI.findBestMove(this.chessState);
-    if (bestMove) {
-      // إذا كانت النقلة ترقية، اختر الملكة دائماً
-      if (bestMove.promotion) {
-        bestMove.promotion = PIECE_QUEEN;
-      }
-
-      const isCapture = !!(bestMove.capture || bestMove.enPassant);
-      this.chessState.makeMove(bestMove);
-      this.lastMove = {
-        fromRank: bestMove.fromRank,
-        fromFile: bestMove.fromFile,
-        toRank: bestMove.toRank,
-        toFile: bestMove.toFile
-      };
-
-      if (bestMove.castling || bestMove.promotion) {
-        this.soundManager.playSpecial();
-      } else if (isCapture) {
-        this.soundManager.playCapture();
-      } else {
-        this.soundManager.playMove();
-      }
+      if (special) this.sound.specialSound();
+      else if (capture) this.sound.captureSound();
+      else this.sound.moveSound();
 
       this.renderBoard();
       this.renderPieces();
-      this.updateStatusBar();
+      this.updateStatus();
       this.autoSave();
 
-      if (this.chessState.gameOver) {
-        setTimeout(() => this.showGameOver(), 600);
+      if (this.state.gameOver) {
+        setTimeout(() => this.showGameOver(), 500);
       }
     }
-
-    this.isAnimating = false;
   }
 
-  // عرض حوار الترقية
-  showPromotionDialog(move) {
-    this.promotionPendingMove = move;
-    this.promotionPiecesContainer.innerHTML = '';
-
-    const color = this.chessState.turn;
-    const promotionPieces = [PIECE_QUEEN, PIECE_ROOK, PIECE_BISHOP, PIECE_KNIGHT];
-
-    for (const pieceType of promotionPieces) {
+  /* ---------- ترقية ---------- */
+  showPromoDialog(move) {
+    const container = this.dom['promo-pieces'];
+    if (!container) return;
+    container.innerHTML = '';
+    const color = this.state.turn;
+    [QUEEN, ROOK, BISHOP, KNIGHT].forEach(type => {
       const btn = document.createElement('button');
-      btn.className = `promotion-piece-btn ${color === WHITE ? 'white-option' : 'black-option'}`;
-      btn.textContent = PIECE_SYMBOLS[pieceType][color];
+      btn.className = 'promo-btn ' + (color === WHITE ? 'white' : 'black');
+      btn.textContent = PIECE_SYMBOLS[type][color];
       btn.addEventListener('click', () => {
-        this.promotionOverlay.classList.remove('active');
-        move.promotion = pieceType;
-        this.executeMove(move);
+        this.dom['overlay-promo'].classList.remove('active');
+        move.promo = type;
+        this.execute(move);
       });
-      this.promotionPiecesContainer.appendChild(btn);
-    }
-
-    this.promotionOverlay.classList.add('active');
+      container.appendChild(btn);
+    });
+    this.dom['overlay-promo'].classList.add('active');
   }
 
-  // ---------- شريط الحالة ----------
-  updateStatusBar() {
-    if (!this.statusText || !this.statusIcon) return;
-
-    if (this.chessState.gameOver) {
-      if (this.chessState.gameResult === 'white') {
-        this.statusText.textContent = 'الأبيض فاز';
-        this.statusIcon.textContent = '🏆';
-      } else if (this.chessState.gameResult === 'black') {
-        this.statusText.textContent = 'الأسود فاز';
-        this.statusIcon.textContent = '🏆';
-      } else {
-        this.statusText.textContent = 'تعادل';
-        this.statusIcon.textContent = '🤝';
-      }
+  /* ---------- شريط الحالة ---------- */
+  updateStatus() {
+    const icon = this.dom['status-icon'];
+    const text = this.dom['status-text'];
+    if (!icon || !text) return;
+    if (this.state.gameOver) {
+      if (this.state.result === 'white') { icon.textContent = '🏆'; text.textContent = 'الأبيض فاز'; }
+      else if (this.state.result === 'black') { icon.textContent = '🏆'; text.textContent = 'الأسود فاز'; }
+      else { icon.textContent = '🤝'; text.textContent = 'تعادل'; }
       return;
     }
-
-    const turnText = this.chessState.turn === WHITE ? 'الأبيض' : 'الأسود';
-    this.statusIcon.textContent = this.chessState.turn === WHITE ? '⚪' : '⚫';
-
-    if (this.chessState.isInCheck(this.chessState.turn)) {
-      this.statusText.textContent = `${turnText} - كش!`;
-    } else {
-      this.statusText.textContent = `دور ${turnText}`;
-    }
+    const turn = this.state.turn === WHITE ? 'الأبيض' : 'الأسود';
+    icon.textContent = this.state.turn === WHITE ? '⚪' : '⚫';
+    text.textContent = this.state.inCheck(this.state.turn) ? `${turn} - كش!` : `دور ${turn}`;
   }
 
-  // ---------- شاشة نهاية اللعبة ----------
+  /* ---------- نهاية اللعبة ---------- */
   showGameOver() {
-    if (!this.chessState.gameOver) return;
-
-    const result = this.chessState.gameResult;
-    const reason = this.chessState.gameResultReason;
-
-    if (result === 'white') {
-      this.gameOverTitle.textContent = 'الأبيض يفوز!';
-      this.gameOverIcon.textContent = '🏆';
-    } else if (result === 'black') {
-      this.gameOverTitle.textContent = 'الأسود يفوز!';
-      this.gameOverIcon.textContent = '🏆';
-    } else {
-      this.gameOverTitle.textContent = 'تعادل!';
-      this.gameOverIcon.textContent = '🤝';
+    const result = this.state.result;
+    const reason = this.state.reason;
+    if (this.dom['gameover-title']) {
+      this.dom['gameover-title'].textContent = result === 'white' ? 'الأبيض يفوز!' : result === 'black' ? 'الأسود يفوز!' : 'تعادل!';
     }
-
-    // ترجمة سبب النهاية
+    if (this.dom['gameover-icon']) {
+      this.dom['gameover-icon'].textContent = result === 'draw' ? '🤝' : '🏆';
+    }
     const reasons = {
-      'checkmate': 'كش مات',
-      'stalemate': 'تعادل - الملك محاصر',
+      checkmate: 'كش مات',
+      stalemate: 'تعادل - الملك محاصر',
       'fifty-move': 'قاعدة 50 نقلة',
-      'threefold-repetition': 'التكرار الثلاثي',
-      'insufficient-material': 'مادة غير كافية'
+      threefold: 'التكرار الثلاثي',
+      insufficient: 'مادة غير كافية'
     };
-    this.gameOverReason.textContent = reasons[reason] || reason;
-
-    this.showScreen('game-over-screen');
-
-    // حذف الحفظ التلقائي عند انتهاء اللعبة
+    if (this.dom['gameover-reason']) {
+      this.dom['gameover-reason'].textContent = reasons[reason] || reason;
+    }
+    this.show('gameover');
     this.clearAutoSave();
   }
 
-  // ---------- سجل النقلات ----------
-  showMovesLog() {
-    const moves = this.chessState.moveHistory;
-    let pgnText = '';
-    let moveNumber = 1;
-
-    for (let i = 0; i < moves.length; i++) {
-      const record = moves[i];
-      if (i % 2 === 0) {
-        pgnText += `${moveNumber}. `;
-        moveNumber++;
-      }
-      // إعادة بناء النقلة بصيغة PGN
-      const tempState = new ChessState();
-      // تطبيق النقلات السابقة للوصول إلى الحالة الصحيحة
-      for (let j = 0; j < i; j++) {
-        const prevRecord = moves[j];
-        tempState.board[prevRecord.move.fromRank][prevRecord.move.fromFile] = prevRecord.piece;
-        tempState.board[prevRecord.move.toRank][prevRecord.move.toFile] = prevRecord.captured;
-        tempState.makeMoveWithoutValidation(prevRecord.move);
-        tempState.turn = prevRecord.piece.color;
-      }
-      // استعادة الحالة الصحيحة
-      tempState.board = this.chessState.board.map(row => row.map(cell => cell ? { ...cell } : null));
-      // الحصول على PGN مبسط
-      const pgnMove = this.getSimplePGN(record);
-      pgnText += pgnMove + ' ';
-    }
-
-    this.movesLogContent.textContent = pgnText.trim() || 'لا توجد نقلات بعد';
-    this.movesLogOverlay.classList.add('active');
+  /* ---------- سجل النقلات ---------- */
+  openLog() {
+    const content = this.dom['log-content'];
+    if (!content) return;
+    let txt = '';
+    this.state.history.forEach((rec, i) => {
+      if (i % 2 === 0) txt += `${Math.floor(i/2)+1}. `;
+      txt += this.formatMove(rec) + ' ';
+    });
+    content.textContent = txt.trim() || 'لا توجد نقلات';
+    this.dom['overlay-log'].classList.add('active');
   }
 
-  // الحصول على PGN مبسط للنقلة
-  getSimplePGN(record) {
-    const move = record.move;
-    if (move.castling === 'kingside') return 'O-O';
-    if (move.castling === 'queenside') return 'O-O-O';
-
-    const pieceSymbol = PGN_SYMBOLS[record.piece.type];
-    const toFile = FILES[move.toFile];
-    const toRank = RANKS[move.toRank];
-    let pgn = pieceSymbol;
-
-    if (record.isCapture || move.enPassant) {
-      if (record.piece.type === PIECE_PAWN) {
-        pgn += FILES[move.fromFile];
-      }
-      pgn += 'x';
+  formatMove(rec) {
+    const m = rec.move;
+    if (m.castling === 'k') return 'O-O';
+    if (m.castling === 'q') return 'O-O-O';
+    let s = '';
+    if (rec.piece.type !== PAWN) s = rec.piece.type.toUpperCase();
+    if (rec.captured) {
+      if (rec.piece.type === PAWN) s = FILES[m.fromF];
+      s += 'x';
     }
-
-    pgn += toFile + toRank;
-
-    if (move.promotion) {
-      pgn += '=' + PGN_SYMBOLS[move.promotion];
-    }
-
-    return pgn;
+    s += algebraic(m.toR, m.toF);
+    if (m.promo) s += '=' + m.promo.toUpperCase();
+    return s;
   }
 
-  hideMovesLog() {
-    this.movesLogOverlay.classList.remove('active');
+  closeLog() {
+    this.dom['overlay-log'].classList.remove('active');
   }
 
-  // نسخ PGN
-  copyPGN() {
-    const pgnText = this.movesLogContent.textContent;
-    if (!pgnText || pgnText === 'لا توجد نقلات بعد') return;
-
-    if (navigator.clipboard) {
-      navigator.clipboard.writeText(pgnText)
-        .then(() => {
-          this.showToast('تم نسخ PGN');
-        })
-        .catch(() => {
-          this.showToast('فشل النسخ');
-        });
-    } else {
-      // fallback
-      const textarea = document.createElement('textarea');
-      textarea.value = pgnText;
-      textarea.style.position = 'fixed';
-      textarea.style.opacity = '0';
-      document.body.appendChild(textarea);
-      textarea.select();
-      try {
-        document.execCommand('copy');
-        this.showToast('تم نسخ PGN');
-      } catch (e) {
-        this.showToast('فشل النسخ');
-      }
-      document.body.removeChild(textarea);
-    }
-  }
-
-  // رسالة توست مؤقتة
-  showToast(message) {
-    const existingToast = document.querySelector('.toast-message');
-    if (existingToast) existingToast.remove();
-
-    const toast = document.createElement('div');
-    toast.className = 'toast-message';
-    toast.textContent = message;
-    toast.style.cssText = `
-      position: fixed;
-      bottom: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      background-color: var(--bg-surface);
-      color: var(--text-primary);
-      padding: 10px 24px;
-      border-radius: 20px;
-      font-size: 0.9rem;
-      z-index: 200;
-      box-shadow: var(--shadow-md);
-      animation: fadeIn 0.3s ease;
-      border: 1px solid var(--accent-gold);
-    `;
-    document.body.appendChild(toast);
-
-    setTimeout(() => {
-      toast.style.opacity = '0';
-      toast.style.transition = 'opacity 0.3s ease';
-      setTimeout(() => toast.remove(), 300);
-    }, 2000);
-  }
-
-  // ---------- الحفظ والاستعادة ----------
-  // حفظ يدوي
-  saveGame() {
-    if (this.chessState.gameOver) {
-      this.showToast('اللعبة منتهية');
-      return;
-    }
-
-    const saveData = {
-      gameMode: this.gameMode,
-      playerColor: this.playerColor,
-      chessState: this.serializeState(),
-      timestamp: Date.now()
-    };
-
-    try {
-      localStorage.setItem('drder-chess-manual-save', JSON.stringify(saveData));
-      this.gameSaved = true;
-      this.showToast('تم حفظ اللعبة');
-    } catch (e) {
-      this.showToast('فشل الحفظ');
-    }
-  }
-
-  // حفظ تلقائي
-  autoSave() {
-    if (this.chessState.gameOver) return;
-
-    const saveData = {
-      gameMode: this.gameMode,
-      playerColor: this.playerColor,
-      chessState: this.serializeState(),
-      timestamp: Date.now()
-    };
-
-    try {
-      localStorage.setItem('drder-chess-auto-save', JSON.stringify(saveData));
-    } catch (e) {
-      // فشل صامت
-    }
-  }
-
-  // مسح الحفظ التلقائي
-  clearAutoSave() {
-    try {
-      localStorage.removeItem('drder-chess-auto-save');
-    } catch (e) {
-      // فشل صامت
-    }
-  }
-
-  // تسلسل حالة اللعبة للحفظ
-  serializeState() {
+  /* ---------- حفظ ---------- */
+  serialize() {
     return {
-      board: this.chessState.board,
-      turn: this.chessState.turn,
-      castlingRights: this.chessState.castlingRights,
-      enPassantTarget: this.chessState.enPassantTarget,
-      halfMoveClock: this.chessState.halfMoveClock,
-      fullMoveNumber: this.chessState.fullMoveNumber,
-      moveHistory: this.chessState.moveHistory.map(record => ({
-        move: record.move,
-        piece: record.piece,
-        captured: record.captured,
-        castlingRights: record.castlingRights,
-        enPassantTarget: record.enPassantTarget,
-        halfMoveClock: record.halfMoveClock,
-        fullMoveNumber: record.fullMoveNumber,
-        isCapture: record.isCapture,
-        isPawnMove: record.isPawnMove,
-        isCastling: record.isCastling,
-        isPromotion: record.isPromotion,
-        prevPositionKey: record.prevPositionKey
-      })),
-      positionCount: this.chessState.positionCount,
-      currentPositionKey: this.chessState.currentPositionKey,
-      gameOver: this.chessState.gameOver,
-      gameResult: this.chessState.gameResult,
-      gameResultReason: this.chessState.gameResultReason
+      mode: this.mode,
+      playerColor: this.playerColor,
+      fen: this.state.toFEN(),
+      history: this.state.history.map(r => ({ move: r.move, piece: r.piece, captured: r.captured })),
+      lastMove: this.lastMove,
+      saved: this.saved
     };
   }
 
-  // إلغاء تسلسل الحالة
-  deserializeState(data) {
-    this.chessState.board = data.board;
-    this.chessState.turn = data.turn;
-    this.chessState.castlingRights = data.castlingRights;
-    this.chessState.enPassantTarget = data.enPassantTarget;
-    this.chessState.halfMoveClock = data.halfMoveClock;
-    this.chessState.fullMoveNumber = data.fullMoveNumber;
-    this.chessState.moveHistory = data.moveHistory;
-    this.chessState.positionCount = data.positionCount;
-    this.chessState.currentPositionKey = data.currentPositionKey;
-    this.chessState.gameOver = data.gameOver;
-    this.chessState.gameResult = data.gameResult;
-    this.chessState.gameResultReason = data.gameResultReason;
-  }
-
-  // التحقق من وجود لعبة محفوظة عند البدء
-  checkForSavedGame() {
-    const manualSave = localStorage.getItem('drder-chess-manual-save');
-    const autoSave = localStorage.getItem('drder-chess-auto-save');
-
-    if (manualSave) {
-      try {
-        const data = JSON.parse(manualSave);
-        this.btnContinue.style.display = 'flex';
-        this.pendingRestoreData = data;
-      } catch (e) {
-        localStorage.removeItem('drder-chess-manual-save');
-        this.btnContinue.style.display = 'none';
-      }
-    }
-
-    if (autoSave && !manualSave) {
-      try {
-        const data = JSON.parse(autoSave);
-        if (!data.chessState.gameOver) {
-          this.restoreOverlay.classList.add('active');
-          this.pendingRestoreData = data;
-        } else {
-          this.clearAutoSave();
-        }
-      } catch (e) {
-        this.clearAutoSave();
-      }
-    }
-  }
-
-  // استعادة اللعبة
-  restoreGame() {
-    if (!this.pendingRestoreData) return;
-
-    const data = this.pendingRestoreData;
-    this.gameMode = data.gameMode;
+  deserialize(data) {
+    this.mode = data.mode;
     this.playerColor = data.playerColor;
-    this.deserializeState(data.chessState);
-    this.selectedSquare = null;
-    this.legalMovesForSelected = [];
-    this.lastMove = null;
-    this.isAnimating = false;
-    this.gameSaved = !!localStorage.getItem('drder-chess-manual-save');
+    this.state.reset(data.fen);
+    // استعادة التاريخ
+    this.state.history = data.history.map(r => ({
+      move: r.move, piece: r.piece, captured: r.captured,
+      castling: { wK: false, wQ: false, bK: false, bQ: false },
+      enPassant: null, halfMoves: 0
+    }));
+    this.lastMove = data.lastMove;
+    this.saved = data.saved;
+    this.state.updatePositionKey();
+    this.state.checkEndConditions();
+  }
 
-    // استعادة آخر نقلة
-    if (this.chessState.moveHistory.length > 0) {
-      const lastRecord = this.chessState.moveHistory[this.chessState.moveHistory.length - 1];
-      this.lastMove = {
-        fromRank: lastRecord.move.fromRank,
-        fromFile: lastRecord.move.fromFile,
-        toRank: lastRecord.move.toRank,
-        toFile: lastRecord.move.toFile
-      };
+  saveManual() {
+    if (this.state.gameOver) return;
+    try {
+      localStorage.setItem('drder-manual', JSON.stringify(this.serialize()));
+      this.saved = true;
+    } catch (e) {}
+  }
+
+  autoSave() {
+    if (this.state.gameOver) return;
+    try {
+      localStorage.setItem('drder-auto', JSON.stringify(this.serialize()));
+    } catch (e) {}
+  }
+
+  clearAutoSave() {
+    try { localStorage.removeItem('drder-auto'); } catch (e) {}
+  }
+
+  checkRestore() {
+    const manual = localStorage.getItem('drder-manual');
+    if (manual) {
+      try {
+        this._restoreData = JSON.parse(manual);
+        const btn = this.dom['btn-continue'];
+        if (btn) btn.style.display = 'flex';
+      } catch (e) { localStorage.removeItem('drder-manual'); }
     }
+    const auto = localStorage.getItem('drder-auto');
+    if (auto && !manual) {
+      try {
+        const data = JSON.parse(auto);
+        if (data.mode) {
+          this._restoreData = data;
+          this.dom['overlay-restore'].classList.add('active');
+        }
+      } catch (e) { this.clearAutoSave(); }
+    }
+  }
 
-    this.restoreOverlay.classList.remove('active');
-    this.showScreen('game-screen');
+  restoreSaved() {
+    if (!this._restoreData) return;
+    const data = this._restoreData;
+    this.deserialize(data);
+    this.selected = null;
+    this.legalMoves = [];
+    this.dom['overlay-restore'].classList.remove('active');
+    const btn = this.dom['btn-continue'];
+    if (btn) btn.style.display = 'none';
+    this._restoreData = null;
+    this.show('game');
     this.renderBoard();
     this.renderPieces();
-    this.updateStatusBar();
-    this.pendingRestoreData = null;
-    this.btnContinue.style.display = 'none';
+    this.updateStatus();
+    if (this.mode === 'computer' && this.state.turn !== this.playerColor && !this.state.gameOver) {
+      setTimeout(() => this.computerMove(), 400);
+    }
   }
 
-  // تجاهل اللعبة المحفوظة
-  discardSavedGame() {
+  discardSaved() {
     this.clearAutoSave();
-    try {
-      localStorage.removeItem('drder-chess-manual-save');
-    } catch (e) {
-      // فشل صامت
-    }
-    this.restoreOverlay.classList.remove('active');
-    this.pendingRestoreData = null;
-    this.btnContinue.style.display = 'none';
+    try { localStorage.removeItem('drder-manual'); } catch (e) {}
+    this.dom['overlay-restore'].classList.remove('active');
+    const btn = this.dom['btn-continue'];
+    if (btn) btn.style.display = 'none';
+    this._restoreData = null;
   }
 
-  // ---------- أزرار التحكم ----------
-  confirmGoHome() {
-    if (this.chessState.gameOver) {
-      this.goHome();
-      return;
-    }
-
-    if (confirm('هل تريد العودة للشاشة الرئيسية؟ سيتم حفظ اللعبة تلقائياً.')) {
-      this.autoSave();
-      this.goHome();
-    }
-  }
-
+  /* ---------- أزرار ---------- */
   goHome() {
-    this.deselectSquare();
-    this.showScreen('home-screen');
-    this.checkForSavedGame();
+    if (!this.state.gameOver) this.autoSave();
+    this.deselect();
+    this.show('home');
+    this.checkRestore();
   }
 
-  confirmRestart() {
-    if (this.chessState.gameOver) {
-      this.startGame(this.gameMode);
-      return;
-    }
+  restart() {
+    if (this.state.gameOver) { this.start(this.mode); return; }
+    this.start(this.mode);
+  }
 
-    if (confirm('هل تريد إعادة اللعبة من البداية؟')) {
-      this.startGame(this.gameMode);
+  /* ---------- Service Worker ---------- */
+  registerSW() {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js').catch(() => {});
     }
   }
 }
 
-// ---------- بدء التطبيق عند تحميل الصفحة ----------
+/* ---------- بدء التطبيق ---------- */
 document.addEventListener('DOMContentLoaded', () => {
-  window.drderChessApp = new DrDerChessApp();
+  window.app = new DrDerChess();
 });
