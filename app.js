@@ -8,11 +8,44 @@ class SoundManager {
   constructor() {
     this.enabled = true;
     this.ctx = null;
+    this._pendingUnlock = true;
+    this._tryInit();
+    /* تفعيل الصوت عند أول تفاعل من المستخدم */
+    this._boundUnlock = this._unlock.bind(this);
+    document.body.addEventListener('click', this._boundUnlock, { once: true });
+    document.body.addEventListener('touchstart', this._boundUnlock, { once: true });
+  }
+
+  _tryInit() {
     try {
       this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+      if (this.ctx.state === 'suspended') {
+        this._pendingUnlock = true;
+      } else {
+        this._pendingUnlock = false;
+      }
     } catch (e) {
+      this.ctx = null;
       this.enabled = false;
+      this._pendingUnlock = false;
     }
+  }
+
+  _unlock() {
+    if (!this.ctx || !this._pendingUnlock) return;
+    this._pendingUnlock = false;
+    this.ctx.resume().then(() => {
+      /* تشغيل صوت صامت لتفعيل السياق */
+      if (this.ctx) {
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        gain.gain.value = 0.001;
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(0);
+        osc.stop(this.ctx.currentTime + 0.001);
+      }
+    }).catch(() => {});
   }
 
   resume() {
@@ -22,7 +55,7 @@ class SoundManager {
   }
 
   _play(freq, dur, vol) {
-    if (!this.enabled || !this.ctx) return;
+    if (!this.enabled || !this.ctx || this._pendingUnlock) return;
     const t = this.ctx.currentTime;
     const osc = this.ctx.createOscillator();
     const gain = this.ctx.createGain();
@@ -45,6 +78,9 @@ class SoundManager {
 /************* التطبيق *************/
 class DrDerChess {
   constructor() {
+    /* Splash Screen */
+    this._showSplash();
+
     this.state = new ChessState();
     this.ai = new ChessAI();
     this.sound = new SoundManager();
@@ -68,6 +104,43 @@ class DrDerChess {
     this._registerSW();
     this._checkRestore();
     this._show('home');
+
+    /* إخفاء Splash Screen بعد التحميل */
+    setTimeout(() => this._hideSplash(), 600);
+  }
+
+  /* ---------- Splash Screen ---------- */
+  _showSplash() {
+    /* إنشاء Splash Screen مؤقت */
+    if (document.getElementById('drder-splash')) return;
+    const splash = document.createElement('div');
+    splash.id = 'drder-splash';
+    splash.style.cssText = `
+      position: fixed; inset: 0; z-index: 9999;
+      background: #1a1a1a; display: flex;
+      flex-direction: column; align-items: center;
+      justify-content: center; gap: 16px;
+      transition: opacity 0.4s ease;
+    `;
+    const img = document.createElement('img');
+    img.src = '192.png';
+    img.alt = 'DrDer Chess';
+    img.style.cssText = 'width:80px;height:80px;border-radius:18px;border:2px solid #c8a45c;';
+    const title = document.createElement('div');
+    title.textContent = 'DrDer Chess';
+    title.style.cssText = 'color:#c8a45c;font-size:1.5rem;font-weight:700;font-family:sans-serif;';
+    splash.appendChild(img);
+    splash.appendChild(title);
+    document.body.appendChild(splash);
+  }
+
+  _hideSplash() {
+    const splash = document.getElementById('drder-splash');
+    if (!splash) return;
+    splash.style.opacity = '0';
+    setTimeout(() => {
+      if (splash.parentNode) splash.parentNode.removeChild(splash);
+    }, 400);
   }
 
   /* ---------- DOM ---------- */
@@ -166,12 +239,10 @@ class DrDerChess {
     this._renderPieces();
   }
 
-  /* هل يجب قلب الرقعة حالياً */
   _shouldFlip() {
     return this.flipBoard && this.mode === 'computer' && this.playerColor === BLACK;
   }
 
-  /* تحويل إحداثيات الرقعة الحقيقية إلى إحداثيات العرض */
   _displayR(r) { return this._shouldFlip() ? 7 - r : r; }
   _displayF(f) { return this._shouldFlip() ? 7 - f : f; }
 
@@ -261,7 +332,7 @@ class DrDerChess {
     });
   }
 
-  /* تحريك قطعة بصرياً */
+  /* تحريك قطعة بصرياً - لا يعيد رسم الرقعة لتجنب الاختفاء */
   _animatePiece(fromR, fromF, toR, toF) {
     const board = this.dom['board'];
     if (!board) return;
@@ -284,7 +355,7 @@ class DrDerChess {
       pieceEl.style.transition = '';
       pieceEl.style.transform = '';
       pieceEl.style.zIndex = '';
-      this._renderBoard();
+      /* إعادة رسم القطع فقط مع الحفاظ على التأثيرات */
       this._renderPieces();
       this._applyEffects();
     }, 180);
@@ -442,6 +513,7 @@ class DrDerChess {
 
   /* ---------- ترقية ---------- */
   _showPromoDialog(move) {
+    if (!move) return;
     this.pendingPromo = move;
     const container = this.dom['promo-pieces'];
     if (!container) return;
@@ -452,9 +524,14 @@ class DrDerChess {
       btn.className = 'promo-btn ' + (color === WHITE ? 'white' : 'black');
       btn.textContent = PIECE_SYMBOLS[type][color];
       btn.addEventListener('click', () => {
+        /* إغلاق الـ overlay أولاً */
         this.dom['overlay-promo']?.classList.remove('active');
-        move.promo = type;
-        this._execute(move);
+        /* التأكد من وجود pendingPromo */
+        if (!this.pendingPromo) return;
+        this.pendingPromo.promo = type;
+        const promoMove = this.pendingPromo;
+        this.pendingPromo = null;
+        this._execute(promoMove);
       });
       container.appendChild(btn);
     });
@@ -501,13 +578,22 @@ class DrDerChess {
     this._clearAutoSave();
   }
 
-  /* ---------- حفظ ---------- */
+  /* ---------- حفظ محسن ---------- */
   _serialize() {
     return {
       mode: this.mode,
       playerColor: this.playerColor,
       fen: this.state._fen(),
-      history: this.state.history.map(r => ({ move: r.move, piece: r.piece, captured: r.captured })),
+      history: this.state.history.map(r => ({
+        move: r.move,
+        piece: r.piece,
+        captured: r.captured,
+        castling: r.castling,
+        enPassant: r.enPassant,
+        halfMoves: r.halfMoves,
+        fullMove: r.fullMove,
+        turn: r.turn
+      })),
       lastMove: this.lastMove,
       saved: this.saved
     };
@@ -517,10 +603,16 @@ class DrDerChess {
     this.mode = data.mode;
     this.playerColor = data.playerColor;
     this.state = new ChessState(data.fen);
+    /* استعادة history كاملاً */
     this.state.history = data.history.map(r => ({
-      move: r.move, piece: r.piece, captured: r.captured,
-      castling: { wK: false, wQ: false, bK: false, bQ: false },
-      enPassant: null, halfMoves: 0
+      move: r.move,
+      piece: r.piece,
+      captured: r.captured,
+      castling: r.castling || { wK: false, wQ: false, bK: false, bQ: false },
+      enPassant: r.enPassant || null,
+      halfMoves: r.halfMoves || 0,
+      fullMove: r.fullMove || 1,
+      turn: r.turn || WHITE
     }));
     this.lastMove = data.lastMove;
     this.saved = data.saved || false;
@@ -594,9 +686,7 @@ class DrDerChess {
     this._checkRestore();
   }
 
-  _restart() {
-    this._start(this.mode);
-  }
+  _restart() { this._start(this.mode); }
 
   _registerSW() {
     if ('serviceWorker' in navigator) {
