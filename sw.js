@@ -1,52 +1,61 @@
 /* ============================================
    DrDer Chess - Service Worker
-   Offline First + تحديث تلقائي
+   Network First للملفات الديناميكية
+   Cache First للملفات الثابتة
    ============================================ */
 'use strict';
 
-/* إصدار الكاش - تغييره يؤدي لتحديث جميع الملفات تلقائياً */
-const CACHE_VERSION = 'drder-chess-v2';
+/* إصدار الكاش */
+const CACHE_VERSION = 'drder-chess-v3';
 const CACHE_NAME = CACHE_VERSION;
 
-/* الملفات المطلوب تخزينها */
-const FILES_TO_CACHE = [
+/* الملفات الثابتة (نادراً ما تتغير) */
+const STATIC_FILES = [
   'index.html',
-  'style.css',
-  'app.js',
-  'engine.js',
   'manifest.json',
   '192.png',
   '512.png'
 ];
 
+/* الملفات الديناميكية (تتغير مع التحديثات) */
+const DYNAMIC_FILES = [
+  'app.js',
+  'engine.js',
+  'style.css'
+];
+
+/* جميع الملفات للتخزين المبدئي */
+const ALL_FILES = [...STATIC_FILES, ...DYNAMIC_FILES];
+
 /* ---------- تثبيت ---------- */
 self.addEventListener('install', event => {
-  console.log('[SW] تثبيت الإصدار:', CACHE_VERSION);
+  console.log('[SW] تثبيت:', CACHE_VERSION);
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => {
-        console.log('[SW] تخزين الملفات...');
-        return cache.addAll(FILES_TO_CACHE);
+        console.log('[SW] تخزين جميع الملفات...');
+        return cache.addAll(ALL_FILES);
       })
       .then(() => {
-        console.log('[SW] تم التثبيت بنجاح - تخطي الانتظار');
+        console.log('[SW] تثبيت ناجح - تخطي الانتظار');
         return self.skipWaiting();
       })
-      .catch(err => {
-        console.error('[SW] فشل التثبيت:', err);
-      })
+      .catch(err => console.error('[SW] فشل التثبيت:', err))
   );
 });
 
 /* ---------- تفعيل ---------- */
 self.addEventListener('activate', event => {
-  console.log('[SW] تفعيل الإصدار:', CACHE_VERSION);
+  console.log('[SW] تفعيل:', CACHE_VERSION);
   event.waitUntil(
     caches.keys()
       .then(cacheNames => {
         return Promise.all(
           cacheNames
-            .filter(name => name !== CACHE_NAME)
+            .filter(name => {
+              /* حذف الكاش القديم الخاص بـ DrDer فقط */
+              return name.startsWith('drder-chess-') && name !== CACHE_NAME;
+            })
             .map(name => {
               console.log('[SW] حذف الكاش القديم:', name);
               return caches.delete(name);
@@ -54,7 +63,7 @@ self.addEventListener('activate', event => {
         );
       })
       .then(() => {
-        console.log('[SW] تم التفعيل - السيطرة على جميع العملاء');
+        console.log('[SW] تفعيل ناجح - السيطرة على العملاء');
         return self.clients.claim();
       })
   );
@@ -62,58 +71,84 @@ self.addEventListener('activate', event => {
 
 /* ---------- جلب ---------- */
 self.addEventListener('fetch', event => {
-  /* تجاهل الطلبات غير GET */
   if (event.request.method !== 'GET') return;
 
-  /* استراتيجية Cache First مع تحديث في الخلفية */
-  event.respondWith(
-    caches.match(event.request)
-      .then(cachedResponse => {
-        if (cachedResponse) {
-          /* تحديث الكاش في الخلفية للحصول على نسخة أحدث */
-          fetch(event.request)
-            .then(networkResponse => {
-              if (networkResponse && networkResponse.status === 200) {
-                caches.open(CACHE_NAME)
-                  .then(cache => cache.put(event.request, networkResponse.clone()));
-              }
-            })
-            .catch(() => {});
-          return cachedResponse;
-        }
+  const url = new URL(event.request.url);
+  const path = url.pathname.split('/').pop();
 
-        /* الملف غير موجود في الكاش - جلبه من الشبكة */
-        return fetch(event.request)
-          .then(networkResponse => {
-            if (!networkResponse || networkResponse.status !== 200) {
-              return networkResponse;
-            }
-            /* تخزين النسخة الجديدة */
-            const responseClone = networkResponse.clone();
-            caches.open(CACHE_NAME)
-              .then(cache => cache.put(event.request, responseClone));
-            return networkResponse;
-          })
-          .catch(() => {
-            /* إرجاع رسالة عند عدم التوفر */
-            if (event.request.headers.get('accept')?.includes('text/html')) {
-              return new Response(
-                '<html dir="rtl"><body style="background:#1a1a1a;color:#f0f0f0;display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;text-align:center"><div><h1 style="color:#c8a45c">DrDer Chess</h1><p>غير متصل بالإنترنت</p><p>يرجى الاتصال للتحميل الأول</p></div></body></html>',
-                { status: 503, headers: { 'Content-Type': 'text/html; charset=utf-8' } }
-              );
-            }
-            return new Response('غير متصل بالإنترنت', {
-              status: 503,
-              headers: { 'Content-Type': 'text/plain; charset=utf-8' }
-            });
-          });
-      })
-  );
-});
-
-/* ---------- إعلام المستخدمين بالتحديث ---------- */
-self.addEventListener('message', event => {
-  if (event.data && event.data.action === 'skipWaiting') {
-    self.skipWaiting();
+  /* تحديد استراتيجية الجلب */
+  if (DYNAMIC_FILES.includes(path)) {
+    /* Network First للملفات الديناميكية */
+    event.respondWith(networkFirst(event.request));
+  } else if (STATIC_FILES.includes(path)) {
+    /* Cache First للملفات الثابتة */
+    event.respondWith(cacheFirst(event.request));
+  } else {
+    /* للملفات الأخرى - Cache First مع fallback */
+    event.respondWith(cacheFirst(event.request));
   }
 });
+
+/* استراتيجية Network First */
+function networkFirst(request) {
+  return fetch(request)
+    .then(networkResponse => {
+      if (!networkResponse || networkResponse.status !== 200) {
+        return caches.match(request);
+      }
+      /* تحديث الكاش */
+      const responseClone = networkResponse.clone();
+      caches.open(CACHE_NAME)
+        .then(cache => cache.put(request, responseClone));
+      return networkResponse;
+    })
+    .catch(() => {
+      return caches.match(request)
+        .then(cached => {
+          if (cached) return cached;
+          return new Response('غير متصل بالإنترنت', {
+            status: 503,
+            headers: { 'Content-Type': 'text/plain; charset=utf-8' }
+          });
+        });
+    });
+}
+
+/* استراتيجية Cache First */
+function cacheFirst(request) {
+  return caches.match(request)
+    .then(cached => {
+      if (cached) {
+        /* تحديث الكاش في الخلفية */
+        fetch(request)
+          .then(networkResponse => {
+            if (networkResponse && networkResponse.status === 200) {
+              caches.open(CACHE_NAME)
+                .then(cache => cache.put(request, networkResponse));
+            }
+          })
+          .catch(() => {});
+        return cached;
+      }
+      /* غير موجود في الكاش - جلبه من الشبكة */
+      return fetch(request)
+        .then(networkResponse => {
+          if (!networkResponse || networkResponse.status !== 200) {
+            return networkResponse;
+          }
+          const responseClone = networkResponse.clone();
+          caches.open(CACHE_NAME)
+            .then(cache => cache.put(request, responseClone));
+          return networkResponse;
+        })
+        .catch(() => {
+          if (request.headers.get('accept')?.includes('text/html')) {
+            return caches.match('index.html');
+          }
+          return new Response('غير متصل بالإنترنت', {
+            status: 503,
+            headers: { 'Content-Type': 'text/plain; charset=utf-8' }
+          });
+        });
+    });
+}
