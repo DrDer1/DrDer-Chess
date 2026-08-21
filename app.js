@@ -31,7 +31,7 @@ class DrDerChessApp {
         this.initAudio();
         this.initEventListeners();
         this.registerServiceWorker();
-        this.showScreen('mainMenu');
+        // لا تستدعي أي شيء آخر - فقط القائمة الرئيسية
     }
     
     cacheDomElements() {
@@ -80,7 +80,6 @@ class DrDerChessApp {
         return Math.random() < 0.5 ? 'white' : 'black';
     }
     
-    // ================ Audio ================
     initAudio() {
         this.audioElements = {
             move: new Audio('move.mp3'),
@@ -100,7 +99,6 @@ class DrDerChessApp {
         }
     }
     
-    // ================ Board ================
     buildBoard() {
         const boardContainer = this.elements.chessboard;
         if (!boardContainer) return;
@@ -303,7 +301,6 @@ class DrDerChessApp {
         }
     }
     
-    // ================ Stockfish ================
     initStockfish() {
         if (this.stockfish) {
             this.stockfish.terminate();
@@ -364,7 +361,6 @@ class DrDerChessApp {
         this.stockfish.postMessage('go depth ' + this.stockfishDepth + ' movetime 3000');
     }
     
-    // ================ Game Modes ================
     startComputerGame() {
         this.gameMode = 'computer';
         this.playerColor = this.getRandomColor();
@@ -411,7 +407,6 @@ class DrDerChessApp {
         this.showScreen('gameScreen');
     }
     
-    // ================ UI Updates ================
     updateGameStatus() {
         if (!this.elements.gameStatusText || !this.game) return;
         
@@ -453,7 +448,6 @@ class DrDerChessApp {
         this.elements.capturedByBlack.textContent = captured.black.map(p => symbols[p] || '').join(' ');
     }
     
-    // ================ Modals ================
     showPromotionModal(color) {
         const symbols = {
             'wq': '♕', 'wr': '♖', 'wb': '♗', 'wn': '♘',
@@ -496,7 +490,6 @@ class DrDerChessApp {
         this.elements.gameOverModal.classList.add('hidden');
     }
     
-    // ================ Navigation ================
     leaveGame() {
         if (this.aiTimeout) {
             clearTimeout(this.aiTimeout);
@@ -523,7 +516,6 @@ class DrDerChessApp {
         }
     }
     
-    // ================ Service Worker ================
     registerServiceWorker() {
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
@@ -533,7 +525,7 @@ class DrDerChessApp {
     }
 }
 
-// Initialize
+// Initialize - ONLY main menu
 document.addEventListener('DOMContentLoaded', function() {
     if (typeof Chess === 'undefined') {
         console.error('Chess library not loaded');
