@@ -17,7 +17,7 @@
 </head>
 <body>
     <!-- الشاشة الرئيسية -->
-    <div id="mainMenu" class="screen active" style="display:flex; flex-direction:column; justify-content:center; align-items:center;">
+    <div id="mainMenu" class="screen active">
         <div class="menu-container">
             <div class="logo-container">
                 <img src="192.png" alt="DrDer Chess Logo" class="logo-icon">
@@ -40,7 +40,7 @@
     </div>
 
     <!-- شاشة اللعبة -->
-    <div id="gameScreen" class="screen" style="display:none; flex-direction:column;">
+    <div id="gameScreen" class="screen">
         <div class="game-header">
             <button id="backToMenuBtn" class="back-btn" type="button">← القائمة</button>
             <div class="game-status">
@@ -53,7 +53,7 @@
         <div class="opponent-name" id="opponentName">الكمبيوتر</div>
         
         <div class="board-wrapper">
-            <div id="chessboard" class="chessboard-container" style="position:relative;width:100vw;height:100vw;max-width:100%;"></div>
+            <div id="chessboard" class="chessboard-container"></div>
         </div>
         
         <div class="player-name-bottom" id="playerNameBottom">DrDer</div>
