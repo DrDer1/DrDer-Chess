@@ -35,45 +35,7 @@
                     <span class="btn-icon">👥</span>
                     <span class="btn-text">لاعبان على نفس الجهاز</span>
                 </button>
-                
-                <button id="settingsBtn" class="menu-btn tertiary-btn">
-                    <span class="btn-icon">⚙️</span>
-                    <span class="btn-text">الإعدادات</span>
-                </button>
             </div>
-            
-            <div id="continueGameContainer" class="continue-container hidden">
-                <button id="continueGameBtn" class="menu-btn accent-btn">
-                    <span class="btn-icon">▶️</span>
-                    <span class="btn-text">متابعة المباراة السابقة</span>
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- شاشة اختيار المستوى -->
-    <div id="levelSelect" class="screen">
-        <div class="back-header">
-            <button id="backFromLevelBtn" class="back-btn">← رجوع</button>
-            <h2>اختر مستوى الذكاء</h2>
-        </div>
-        <div class="level-buttons">
-            <button class="level-btn easy-btn" data-level="easy">
-                <span>سهل</span>
-                <small>مستوى مبتدئ</small>
-            </button>
-            <button class="level-btn medium-btn" data-level="medium">
-                <span>متوسط</span>
-                <small>مستوى متوسط</small>
-            </button>
-            <button class="level-btn hard-btn" data-level="hard">
-                <span>صعب</span>
-                <small>مستوى متقدم</small>
-            </button>
-            <button class="level-btn expert-btn" data-level="expert">
-                <span>محترف</span>
-                <small>أقصى قوة</small>
-            </button>
         </div>
     </div>
 
@@ -85,27 +47,27 @@
                 <span id="gameStatusText">دور الأبيض</span>
                 <span id="moveCounter" class="move-counter"></span>
             </div>
-            <button id="saveGameBtn" class="icon-btn" title="حفظ المباراة">💾</button>
+            <div style="width:40px;"></div>
         </div>
+        
+        <!-- اسم الخصم أعلى الرقعة -->
+        <div class="opponent-name" id="opponentName">الكمبيوتر</div>
         
         <div class="board-wrapper">
             <div id="chessboard" class="chessboard-container"></div>
         </div>
         
+        <!-- اسم DrDer أسفل الرقعة -->
+        <div class="player-name-bottom" id="playerNameBottom">DrDer</div>
+        
         <div class="game-footer">
             <div class="player-info">
-                <div class="player black-player">
-                    <span class="player-color">⚫</span>
-                    <span class="player-name" id="blackPlayerName">الأسود</span>
-                </div>
-                <div class="captured-pieces" id="capturedByWhite"></div>
+                <span class="player-color">⚫</span>
+                <span class="captured-pieces" id="capturedByWhite"></span>
             </div>
             <div class="player-info">
-                <div class="player white-player">
-                    <span class="player-color">⚪</span>
-                    <span class="player-name" id="whitePlayerName">الأبيض</span>
-                </div>
-                <div class="captured-pieces" id="capturedByBlack"></div>
+                <span class="player-color">⚪</span>
+                <span class="captured-pieces" id="capturedByBlack"></span>
             </div>
         </div>
         
@@ -127,40 +89,6 @@
                     <button id="reviewGameBtn" class="menu-btn secondary-btn">مراجعة الرقعة</button>
                 </div>
             </div>
-        </div>
-    </div>
-
-    <!-- شاشة الإعدادات -->
-    <div id="settingsScreen" class="screen">
-        <div class="back-header">
-            <button id="backFromSettingsBtn" class="back-btn">← رجوع</button>
-            <h2>الإعدادات</h2>
-        </div>
-        <div class="settings-container">
-            <div class="setting-item">
-                <span>🔊 الصوت</span>
-                <label class="toggle">
-                    <input type="checkbox" id="soundToggle" checked>
-                    <span class="toggle-slider"></span>
-                </label>
-            </div>
-            <div class="setting-item">
-                <span>📍 إحداثيات الرقعة</span>
-                <label class="toggle">
-                    <input type="checkbox" id="coordsToggle" checked>
-                    <span class="toggle-slider"></span>
-                </label>
-            </div>
-            <div class="setting-item">
-                <span>🟢 النقلات القانونية</span>
-                <label class="toggle">
-                    <input type="checkbox" id="legalMovesToggle" checked>
-                    <span class="toggle-slider"></span>
-                </label>
-            </div>
-            <button id="resetSettingsBtn" class="menu-btn tertiary-btn">
-                إعادة ضبط الإعدادات
-            </button>
         </div>
     </div>
 
