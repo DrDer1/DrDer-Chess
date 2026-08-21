@@ -1,6 +1,6 @@
 // ================ DrDer Chess - Service Worker ================
 
-const CACHE_NAME = 'drder-chess-v7.0.0';
+const CACHE_NAME = 'drder-chess-v4.0.0';
 const ASSETS_TO_CACHE = [
     './',
     'index.html',
@@ -11,20 +11,21 @@ const ASSETS_TO_CACHE = [
     'chess.min.js',
     'stockfish.js',
     '192.png',
-    '512.png'
+    '512.png',
+    'move.mp3',
+    'capture.mp3',
+    'check.mp3',
+    'checkmate.mp3',
+    'promote.mp3'
 ];
 
 self.addEventListener('install', (event) => {
-    console.log('[SW] Installing...');
-    
     event.waitUntil(
         caches.open(CACHE_NAME)
             .then((cache) => {
                 return Promise.allSettled(
                     ASSETS_TO_CACHE.map(asset => {
-                        return cache.add(asset).catch(error => {
-                            console.warn(`[SW] Failed to cache: ${asset}`, error);
-                        });
+                        return cache.add(asset).catch(() => {});
                     })
                 );
             })
@@ -66,17 +67,15 @@ self.addEventListener('fetch', (event) => {
                         if (networkResponse && networkResponse.status === 200) {
                             const responseToCache = networkResponse.clone();
                             caches.open(CACHE_NAME)
-                                .then((cache) => {
-                                    cache.put(event.request, responseToCache);
-                                });
+                                .then((cache) => cache.put(event.request, responseToCache));
                         }
                         return networkResponse;
                     })
-                    .catch((error) => {
+                    .catch(() => {
                         if (event.request.mode === 'navigate') {
                             return caches.match('index.html');
                         }
-                        throw error;
+                        return new Response('Offline', { status: 503 });
                     });
             })
     );
