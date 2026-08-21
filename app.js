@@ -19,23 +19,23 @@ class DrDerChessApp {
             legalMoves: true
         };
         
-        this.soundEngine = null;
+        this.sounds = {};
+        this.audioContext = null;
+        
         this.screens = {};
         this.elements = {};
         this.boardElements = {};
-        this.isDragging = false;
         
         this.init();
     }
     
     init() {
         this.cacheDomElements();
-        this.initSoundEngine();
+        this.initSounds();
         this.initEventListeners();
-        this.buildBoard();
         this.registerServiceWorker();
         this.showScreen('mainMenu');
-        console.log('DrDer Chess initialized');
+        console.log('DrDer Chess initialized - Main Menu shown');
     }
     
     cacheDomElements() {
@@ -78,11 +78,52 @@ class DrDerChessApp {
         if (this.screens[screenName]) {
             this.screens[screenName].classList.add('active');
         }
+        console.log('Showing screen:', screenName);
     }
     
-    // ================ Random Color Selection ================
     getRandomColor() {
         return Math.random() < 0.5 ? 'white' : 'black';
+    }
+    
+    // ================ Sounds (Using MP3 files) ================
+    initSounds() {
+        try {
+            this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        } catch (e) {}
+        
+        this.sounds = {
+            move: new Audio('move.mp3'),
+            capture: new Audio('capture.mp3'),
+            check: new Audio('check.mp3'),
+            gameOver: new Audio('checkmate.mp3'),
+            promote: new Audio('promote.mp3')
+        };
+    }
+    
+    playSound(type) {
+        if (!this.settings.sound) return;
+        
+        const sound = this.sounds[type];
+        if (sound) {
+            sound.currentTime = 0;
+            sound.play().catch(() => {});
+        }
+    }
+    
+    playMoveSound(move) {
+        if (!this.settings.sound) return;
+        
+        if (this.game.isGameFinished()) {
+            this.playSound('gameOver');
+        } else if (move.captured) {
+            this.playSound('capture');
+        } else if (move.promotion) {
+            this.playSound('promote');
+        } else if (this.game.isInCheck()) {
+            this.playSound('check');
+        } else {
+            this.playSound('move');
+        }
     }
     
     // ================ Board Rendering ================
@@ -93,7 +134,6 @@ class DrDerChessApp {
         boardContainer.innerHTML = '';
         boardContainer.style.cssText = 'position:relative;width:100%;height:100%;border:3px solid #2a2a4a;border-radius:4px;overflow:hidden;';
         
-        // Create squares
         for (let row = 0; row < 8; row++) {
             for (let col = 0; col < 8; col++) {
                 const square = document.createElement('div');
@@ -109,22 +149,18 @@ class DrDerChessApp {
                     'left:' + (col * 12.5) + '%;' +
                     'background-color:' + (isLight ? '#f0d9b5' : '#b58863') + ';' +
                     'cursor:pointer;' +
-                    'transition:background-color 0.15s;' +
                     'z-index:1;';
                 
                 square.addEventListener('click', () => this.handleSquareClick(squareName));
-                
                 boardContainer.appendChild(square);
                 this.boardElements[squareName] = square;
             }
         }
         
-        // Add notation
         if (this.settings.coords) {
             this.addNotation(boardContainer);
         }
         
-        // Pieces container
         const piecesContainer = document.createElement('div');
         piecesContainer.id = 'pieces-container';
         piecesContainer.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;z-index:2;pointer-events:none;';
@@ -182,7 +218,7 @@ class DrDerChessApp {
         };
         
         const containerSize = this.elements.chessboard.offsetWidth || 400;
-        const pieceFontSize = containerSize * 0.08;
+        const pieceFontSize = containerSize * 0.085;
         
         for (let row = 0; row < 8; row++) {
             for (let col = 0; col < 8; col++) {
@@ -210,12 +246,10 @@ class DrDerChessApp {
                     'z-index:3;';
                 
                 pieceEl.addEventListener('click', () => this.handleSquareClick(squareName));
-                
                 piecesContainer.appendChild(pieceEl);
             }
         }
         
-        // Highlight selected square
         if (this.game.selectedSquare) {
             this.highlightSelectedAndMoves();
         }
@@ -225,13 +259,11 @@ class DrDerChessApp {
         const selected = this.game.selectedSquare;
         if (!selected) return;
         
-        // Highlight selected
         const selectedEl = this.boardElements[selected];
         if (selectedEl) {
             selectedEl.style.backgroundColor = '#ffff00';
         }
         
-        // Highlight legal moves
         if (this.settings.legalMoves) {
             this.game.legalMovesForSelected.forEach(move => {
                 const squareEl = this.boardElements[move.to];
@@ -308,6 +340,7 @@ class DrDerChessApp {
         this.updateCapturedPieces();
         
         if (this.game.isGameFinished()) {
+            this.playSound('gameOver');
             this.showGameOverModal();
             return;
         }
@@ -405,7 +438,6 @@ class DrDerChessApp {
         
         this.showScreen('gameScreen');
         
-        // If computer is white, make first move
         if (this.playerColor === 'black') {
             this.stockfishThinking = true;
             this.updateGameStatus();
@@ -475,70 +507,6 @@ class DrDerChessApp {
         
         this.elements.capturedByWhite.textContent = captured.white.map(p => symbols[p] || '').join(' ');
         this.elements.capturedByBlack.textContent = captured.black.map(p => symbols[p] || '').join(' ');
-    }
-    
-    // ================ Sound ================
-    initSoundEngine() {
-        this.soundEngine = {
-            audioContext: null,
-            
-            init() {
-                try {
-                    this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                } catch (e) {}
-            },
-            
-            play(type) {
-                if (!this.audioContext) return;
-                const frequencies = {
-                    move: [440, 550],
-                    capture: [330, 220],
-                    check: [660, 880],
-                    gameOver: [440, 330, 220],
-                    castle: [550, 660],
-                    promote: [550, 660, 770]
-                };
-                const freq = frequencies[type] || frequencies.move;
-                this.playTones(freq, type === 'gameOver' ? 0.3 : 0.1);
-            },
-            
-            playTones(frequencies, duration) {
-                if (!this.audioContext) return;
-                const ctx = this.audioContext;
-                const now = ctx.currentTime;
-                frequencies.forEach((freq, index) => {
-                    const osc = ctx.createOscillator();
-                    const gain = ctx.createGain();
-                    osc.connect(gain);
-                    gain.connect(ctx.destination);
-                    osc.frequency.value = freq;
-                    osc.type = 'sine';
-                    const startTime = now + (index * duration * 0.5);
-                    gain.gain.setValueAtTime(0.3, startTime);
-                    gain.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
-                    osc.start(startTime);
-                    osc.stop(startTime + duration);
-                });
-            }
-        };
-        
-        this.soundEngine.init();
-    }
-    
-    playMoveSound(move) {
-        if (!this.settings.sound) return;
-        
-        if (move.captured) {
-            this.soundEngine.play('capture');
-        } else if (move.promotion) {
-            this.soundEngine.play('promote');
-        } else if (move.san && move.san.includes('+')) {
-            this.soundEngine.play('check');
-        } else if (move.san && (move.san.includes('O-O') || move.san.includes('0-0'))) {
-            this.soundEngine.play('castle');
-        } else {
-            this.soundEngine.play('move');
-        }
     }
     
     // ================ Modals ================
