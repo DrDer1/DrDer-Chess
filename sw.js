@@ -1,17 +1,22 @@
 // ================ DrDer Chess - Service Worker ================
 
-const CACHE_NAME = 'drder-chess-v1.0.0';
+const CACHE_NAME = 'drder-chess-v2.0.0';
 const ASSETS_TO_CACHE = [
-    '/',
+    './',
     'index.html',
     'style.css',
     'app.js',
+    'game.js',
     'manifest.json',
+    'chess.min.js',
+    'stockfish.js',
     '192.png',
     '512.png',
-    'libs/chess.min.js',
-    'libs/chessboard.min.js',
-    'libs/stockfish.js'
+    'move.mp3',
+    'capture.mp3',
+    'check.mp3',
+    'checkmate.mp3',
+    'promote.mp3'
 ];
 
 // ================ Install Event ================
@@ -23,7 +28,6 @@ self.addEventListener('install', (event) => {
             .then((cache) => {
                 console.log('[SW] Caching app shell and assets');
                 
-                // Cache all assets individually to handle failures gracefully
                 return Promise.allSettled(
                     ASSETS_TO_CACHE.map(asset => {
                         return cache.add(asset).catch(error => {
@@ -64,27 +68,21 @@ self.addEventListener('activate', (event) => {
 
 // ================ Fetch Event (Cache First Strategy) ================
 self.addEventListener('fetch', (event) => {
-    // Skip non-GET requests
     if (event.request.method !== 'GET') return;
     
-    // Skip chrome-extension and other non-http(s) requests
     const url = new URL(event.request.url);
     if (!url.protocol.startsWith('http')) return;
     
     event.respondWith(
         caches.match(event.request)
             .then((cachedResponse) => {
-                // Return cached response if found
                 if (cachedResponse) {
-                    // Update cache in background for next time
                     updateCache(event.request, CACHE_NAME);
                     return cachedResponse;
                 }
                 
-                // Otherwise fetch from network
                 return fetch(event.request)
                     .then((networkResponse) => {
-                        // Cache valid responses for offline use
                         if (networkResponse && networkResponse.status === 200) {
                             const responseToCache = networkResponse.clone();
                             
@@ -102,7 +100,6 @@ self.addEventListener('fetch', (event) => {
                     .catch((error) => {
                         console.error('[SW] Fetch failed:', error);
                         
-                        // Return a fallback for navigation requests
                         if (event.request.mode === 'navigate') {
                             return caches.match('index.html');
                         }
@@ -115,7 +112,6 @@ self.addEventListener('fetch', (event) => {
 
 // ================ Background Cache Update ================
 function updateCache(request, cacheName) {
-    // Don't update cache for certain patterns
     const url = new URL(request.url);
     if (url.pathname.includes('chrome-extension')) return;
     
@@ -143,7 +139,6 @@ self.addEventListener('message', (event) => {
     }
     
     if (event.data && event.data.type === 'CHECK_UPDATE') {
-        // Client is checking for updates
         self.clients.matchAll().then((clients) => {
             clients.forEach(client => {
                 client.postMessage({
@@ -155,7 +150,7 @@ self.addEventListener('message', (event) => {
     }
 });
 
-// ================ Push Notification Support (Optional) ================
+// ================ Push Notification Support ================
 self.addEventListener('push', (event) => {
     if (event.data) {
         const data = event.data.json();
@@ -187,15 +182,13 @@ self.addEventListener('notificationclick', (event) => {
     event.waitUntil(
         self.clients.matchAll({ type: 'window' })
             .then((clientList) => {
-                // Focus on existing window if available
                 for (const client of clientList) {
                     if (client.url.includes(self.location.origin) && 'focus' in client) {
                         return client.focus();
                     }
                 }
-                // Otherwise open new window
                 if (self.clients.openWindow) {
-                    return self.clients.openWindow('/');
+                    return self.clients.openWindow('./');
                 }
             })
     );
