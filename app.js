@@ -2,10 +2,9 @@
 
 class DrDerChessApp {
     constructor() {
-        this.game = new ChessGame();
+        this.game = null;
         this.gameMode = null;
         this.playerColor = 'white';
-        this.computerLevel = 'expert';
         this.stockfish = null;
         this.stockfishReady = false;
         this.stockfishThinking = false;
@@ -19,9 +18,7 @@ class DrDerChessApp {
             legalMoves: true
         };
         
-        this.audioContext = null;
-        this.audioBuffers = {};
-        
+        this.audioElements = {};
         this.screens = {};
         this.elements = {};
         this.boardElements = {};
@@ -65,14 +62,8 @@ class DrDerChessApp {
     }
     
     initEventListeners() {
-        this.elements.playComputerBtn.addEventListener('click', () => {
-            console.log('Play Computer clicked');
-            this.startComputerGame();
-        });
-        this.elements.twoPlayersBtn.addEventListener('click', () => {
-            console.log('Two Players clicked');
-            this.startTwoPlayerGame();
-        });
+        this.elements.playComputerBtn.addEventListener('click', () => this.startComputerGame());
+        this.elements.twoPlayersBtn.addEventListener('click', () => this.startTwoPlayerGame());
         this.elements.backToMenuBtn.addEventListener('click', () => this.leaveGame());
         this.elements.newGameBtn.addEventListener('click', () => this.resetGame());
         this.elements.reviewGameBtn.addEventListener('click', () => this.closeGameOverModal());
@@ -89,12 +80,8 @@ class DrDerChessApp {
         return Math.random() < 0.5 ? 'white' : 'black';
     }
     
-    // ================ Audio using MP3 files ================
+    // ================ Audio ================
     initAudio() {
-        try {
-            this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        } catch (e) {}
-        
         this.audioElements = {
             move: new Audio('move.mp3'),
             capture: new Audio('capture.mp3'),
@@ -102,17 +89,10 @@ class DrDerChessApp {
             gameOver: new Audio('checkmate.mp3'),
             promote: new Audio('promote.mp3')
         };
-        
-        // Preload
-        Object.values(this.audioElements).forEach(audio => {
-            audio.preload = 'auto';
-            audio.load();
-        });
     }
     
     playSound(type) {
         if (!this.settings.sound) return;
-        
         const audio = this.audioElements[type];
         if (audio) {
             audio.currentTime = 0;
@@ -120,13 +100,14 @@ class DrDerChessApp {
         }
     }
     
-    // ================ Board Rendering ================
+    // ================ Board ================
     buildBoard() {
         const boardContainer = this.elements.chessboard;
         if (!boardContainer) return;
         
         boardContainer.innerHTML = '';
         boardContainer.style.cssText = 'position:relative;width:100%;height:100%;overflow:hidden;';
+        this.boardElements = {};
         
         for (let row = 0; row < 8; row++) {
             for (let col = 0; col < 8; col++) {
@@ -137,22 +118,15 @@ class DrDerChessApp {
                 square.className = 'chess-square';
                 square.setAttribute('data-square', squareName);
                 square.style.cssText = 
-                    'position:absolute;' +
-                    'width:12.5%;height:12.5%;' +
-                    'top:' + (row * 12.5) + '%;' +
-                    'left:' + (col * 12.5) + '%;' +
+                    'position:absolute;width:12.5%;height:12.5%;' +
+                    'top:' + (row * 12.5) + '%;left:' + (col * 12.5) + '%;' +
                     'background-color:' + (isLight ? '#f0d9b5' : '#b58863') + ';' +
-                    'cursor:pointer;' +
-                    'z-index:1;';
+                    'cursor:pointer;z-index:1;';
                 
                 square.addEventListener('click', () => this.handleSquareClick(squareName));
                 boardContainer.appendChild(square);
                 this.boardElements[squareName] = square;
             }
-        }
-        
-        if (this.settings.coords) {
-            this.addNotation(boardContainer);
         }
         
         const piecesContainer = document.createElement('div');
@@ -163,34 +137,6 @@ class DrDerChessApp {
         this.renderPieces();
     }
     
-    addNotation(boardInner) {
-        for (let i = 0; i < 8; i++) {
-            const col = this.playerColor === 'white' ? i : 7 - i;
-            const fileLabel = document.createElement('div');
-            fileLabel.textContent = String.fromCharCode(97 + col);
-            fileLabel.style.cssText = 
-                'position:absolute;bottom:2px;' +
-                'left:' + (i * 12.5 + 6.25) + '%;' +
-                'transform:translateX(-50%);' +
-                'font-size:10px;font-weight:bold;' +
-                'color:' + (i % 2 === 0 ? '#b58863' : '#f0d9b5') + ';' +
-                'pointer-events:none;z-index:1;';
-            boardInner.appendChild(fileLabel);
-            
-            const row = this.playerColor === 'white' ? 7 - i : i;
-            const rankLabel = document.createElement('div');
-            rankLabel.textContent = row + 1;
-            rankLabel.style.cssText = 
-                'position:absolute;top:' + (i * 12.5 + 6.25) + '%;' +
-                'right:2px;' +
-                'transform:translateY(-50%);' +
-                'font-size:10px;font-weight:bold;' +
-                'color:' + (i % 2 === 0 ? '#f0d9b5' : '#b58863') + ';' +
-                'pointer-events:none;z-index:1;';
-            boardInner.appendChild(rankLabel);
-        }
-    }
-    
     getSquareName(row, col) {
         const file = this.playerColor === 'white' ? col : 7 - col;
         const rank = this.playerColor === 'white' ? 8 - row : row + 1;
@@ -199,7 +145,7 @@ class DrDerChessApp {
     
     renderPieces() {
         const piecesContainer = document.getElementById('pieces-container');
-        if (!piecesContainer) return;
+        if (!piecesContainer || !this.game) return;
         
         piecesContainer.innerHTML = '';
         
@@ -228,16 +174,11 @@ class DrDerChessApp {
                 pieceEl.setAttribute('data-square', squareName);
                 pieceEl.textContent = symbols[pieceKey] || '';
                 pieceEl.style.cssText = 
-                    'position:absolute;' +
-                    'width:12.5%;height:12.5%;' +
-                    'top:' + (row * 12.5) + '%;' +
-                    'left:' + (col * 12.5) + '%;' +
+                    'position:absolute;width:12.5%;height:12.5%;' +
+                    'top:' + (row * 12.5) + '%;left:' + (col * 12.5) + '%;' +
                     'display:flex;align-items:center;justify-content:center;' +
                     'font-size:' + pieceFontSize + 'px;' +
-                    'cursor:pointer;' +
-                    'user-select:none;' +
-                    'pointer-events:all;' +
-                    'z-index:3;';
+                    'cursor:pointer;user-select:none;pointer-events:all;z-index:3;';
                 
                 pieceEl.addEventListener('click', () => this.handleSquareClick(squareName));
                 piecesContainer.appendChild(pieceEl);
@@ -266,8 +207,7 @@ class DrDerChessApp {
                     dot.style.cssText = 
                         'position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);' +
                         'width:30%;height:30%;border-radius:50%;' +
-                        'background-color:rgba(0,0,0,0.3);' +
-                        'pointer-events:none;z-index:2;';
+                        'background-color:rgba(0,0,0,0.3);pointer-events:none;z-index:2;';
                     squareEl.appendChild(dot);
                 }
             });
@@ -275,7 +215,7 @@ class DrDerChessApp {
     }
     
     handleSquareClick(squareName) {
-        if (this.game.isGameFinished()) return;
+        if (!this.game || this.game.isGameFinished()) return;
         if (this.gameMode === 'computer' && this.stockfishThinking) return;
         
         if (this.gameMode === 'computer') {
@@ -324,6 +264,8 @@ class DrDerChessApp {
     }
     
     makeMoveAndUpdate(from, to, promotion = 'q') {
+        if (!this.game) return;
+        
         const result = this.game.makeMove(from, to, promotion);
         if (!result) return;
         
@@ -332,10 +274,13 @@ class DrDerChessApp {
         this.updateMoveCounter();
         this.updateCapturedPieces();
         
-        // Play sound based on move
         if (this.game.isGameFinished()) {
             this.playSound('gameOver');
-        } else if (result.captured) {
+            this.showGameOverModal();
+            return;
+        }
+        
+        if (result.captured) {
             this.playSound('capture');
         } else if (result.promotion) {
             this.playSound('promote');
@@ -343,11 +288,6 @@ class DrDerChessApp {
             this.playSound('check');
         } else {
             this.playSound('move');
-        }
-        
-        if (this.game.isGameFinished()) {
-            this.showGameOverModal();
-            return;
         }
         
         if (this.gameMode === 'computer') {
@@ -363,7 +303,7 @@ class DrDerChessApp {
         }
     }
     
-    // ================ Stockfish AI ================
+    // ================ Stockfish ================
     initStockfish() {
         if (this.stockfish) {
             this.stockfish.terminate();
@@ -403,13 +343,12 @@ class DrDerChessApp {
             this.stockfish.postMessage('uci');
             this.stockfish.postMessage('isready');
         } catch (error) {
-            console.error('Stockfish error:', error);
             this.stockfish = null;
         }
     }
     
     makeAIMove() {
-        if (this.game.isGameFinished()) return;
+        if (!this.game || this.game.isGameFinished()) return;
         
         if (!this.stockfish || !this.stockfishReady) {
             const moves = this.game.getLegalMoves();
@@ -427,11 +366,10 @@ class DrDerChessApp {
     
     // ================ Game Modes ================
     startComputerGame() {
-        console.log('Starting computer game');
         this.gameMode = 'computer';
         this.playerColor = this.getRandomColor();
+        this.game = new ChessGame();
         
-        this.game.newGame();
         this.initStockfish();
         
         this.elements.opponentName.textContent = 'الكمبيوتر';
@@ -452,11 +390,9 @@ class DrDerChessApp {
     }
     
     startTwoPlayerGame() {
-        console.log('Starting two player game');
         this.gameMode = 'twoPlayers';
         this.playerColor = this.getRandomColor();
-        
-        this.game.newGame();
+        this.game = new ChessGame();
         
         if (this.stockfish) {
             this.stockfish.terminate();
@@ -477,7 +413,7 @@ class DrDerChessApp {
     
     // ================ UI Updates ================
     updateGameStatus() {
-        if (!this.elements.gameStatusText) return;
+        if (!this.elements.gameStatusText || !this.game) return;
         
         if (this.game.isGameFinished()) {
             const result = this.game.getGameResult();
@@ -501,12 +437,13 @@ class DrDerChessApp {
     }
     
     updateMoveCounter() {
-        if (!this.elements.moveCounter) return;
+        if (!this.elements.moveCounter || !this.game) return;
         const moves = this.game.getMoveHistory().length;
         this.elements.moveCounter.textContent = 'النقلة: ' + (Math.floor(moves / 2) + 1);
     }
     
     updateCapturedPieces() {
+        if (!this.game) return;
         const captured = this.game.getCapturedPieces();
         const symbols = {
             'p': '♟', 'r': '♜', 'n': '♞', 'b': '♝', 'q': '♛'
@@ -596,7 +533,7 @@ class DrDerChessApp {
     }
 }
 
-// Initialize - shows main menu
+// Initialize
 document.addEventListener('DOMContentLoaded', function() {
     if (typeof Chess === 'undefined') {
         console.error('Chess library not loaded');
