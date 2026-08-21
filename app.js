@@ -19,8 +19,8 @@ class DrDerChessApp {
             legalMoves: true
         };
         
-        this.sounds = {};
         this.audioContext = null;
+        this.audioBuffers = {};
         
         this.screens = {};
         this.elements = {};
@@ -31,11 +31,10 @@ class DrDerChessApp {
     
     init() {
         this.cacheDomElements();
-        this.initSounds();
+        this.initAudio();
         this.initEventListeners();
         this.registerServiceWorker();
         this.showScreen('mainMenu');
-        console.log('DrDer Chess initialized - Main Menu shown');
     }
     
     cacheDomElements() {
@@ -66,8 +65,14 @@ class DrDerChessApp {
     }
     
     initEventListeners() {
-        this.elements.playComputerBtn.addEventListener('click', () => this.startComputerGame());
-        this.elements.twoPlayersBtn.addEventListener('click', () => this.startTwoPlayerGame());
+        this.elements.playComputerBtn.addEventListener('click', () => {
+            console.log('Play Computer clicked');
+            this.startComputerGame();
+        });
+        this.elements.twoPlayersBtn.addEventListener('click', () => {
+            console.log('Two Players clicked');
+            this.startTwoPlayerGame();
+        });
         this.elements.backToMenuBtn.addEventListener('click', () => this.leaveGame());
         this.elements.newGameBtn.addEventListener('click', () => this.resetGame());
         this.elements.reviewGameBtn.addEventListener('click', () => this.closeGameOverModal());
@@ -78,51 +83,40 @@ class DrDerChessApp {
         if (this.screens[screenName]) {
             this.screens[screenName].classList.add('active');
         }
-        console.log('Showing screen:', screenName);
     }
     
     getRandomColor() {
         return Math.random() < 0.5 ? 'white' : 'black';
     }
     
-    // ================ Sounds (Using MP3 files) ================
-    initSounds() {
+    // ================ Audio using MP3 files ================
+    initAudio() {
         try {
             this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
         } catch (e) {}
         
-        this.sounds = {
+        this.audioElements = {
             move: new Audio('move.mp3'),
             capture: new Audio('capture.mp3'),
             check: new Audio('check.mp3'),
             gameOver: new Audio('checkmate.mp3'),
             promote: new Audio('promote.mp3')
         };
+        
+        // Preload
+        Object.values(this.audioElements).forEach(audio => {
+            audio.preload = 'auto';
+            audio.load();
+        });
     }
     
     playSound(type) {
         if (!this.settings.sound) return;
         
-        const sound = this.sounds[type];
-        if (sound) {
-            sound.currentTime = 0;
-            sound.play().catch(() => {});
-        }
-    }
-    
-    playMoveSound(move) {
-        if (!this.settings.sound) return;
-        
-        if (this.game.isGameFinished()) {
-            this.playSound('gameOver');
-        } else if (move.captured) {
-            this.playSound('capture');
-        } else if (move.promotion) {
-            this.playSound('promote');
-        } else if (this.game.isInCheck()) {
-            this.playSound('check');
-        } else {
-            this.playSound('move');
+        const audio = this.audioElements[type];
+        if (audio) {
+            audio.currentTime = 0;
+            audio.play().catch(() => {});
         }
     }
     
@@ -132,7 +126,7 @@ class DrDerChessApp {
         if (!boardContainer) return;
         
         boardContainer.innerHTML = '';
-        boardContainer.style.cssText = 'position:relative;width:100%;height:100%;border:3px solid #2a2a4a;border-radius:4px;overflow:hidden;';
+        boardContainer.style.cssText = 'position:relative;width:100%;height:100%;overflow:hidden;';
         
         for (let row = 0; row < 8; row++) {
             for (let col = 0; col < 8; col++) {
@@ -333,14 +327,25 @@ class DrDerChessApp {
         const result = this.game.makeMove(from, to, promotion);
         if (!result) return;
         
-        this.playMoveSound(result);
         this.buildBoard();
         this.updateGameStatus();
         this.updateMoveCounter();
         this.updateCapturedPieces();
         
+        // Play sound based on move
         if (this.game.isGameFinished()) {
             this.playSound('gameOver');
+        } else if (result.captured) {
+            this.playSound('capture');
+        } else if (result.promotion) {
+            this.playSound('promote');
+        } else if (this.game.isInCheck()) {
+            this.playSound('check');
+        } else {
+            this.playSound('move');
+        }
+        
+        if (this.game.isGameFinished()) {
             this.showGameOverModal();
             return;
         }
@@ -398,7 +403,7 @@ class DrDerChessApp {
             this.stockfish.postMessage('uci');
             this.stockfish.postMessage('isready');
         } catch (error) {
-            console.error('Failed to load Stockfish:', error);
+            console.error('Stockfish error:', error);
             this.stockfish = null;
         }
     }
@@ -422,6 +427,7 @@ class DrDerChessApp {
     
     // ================ Game Modes ================
     startComputerGame() {
+        console.log('Starting computer game');
         this.gameMode = 'computer';
         this.playerColor = this.getRandomColor();
         
@@ -446,6 +452,7 @@ class DrDerChessApp {
     }
     
     startTwoPlayerGame() {
+        console.log('Starting two player game');
         this.gameMode = 'twoPlayers';
         this.playerColor = this.getRandomColor();
         
@@ -589,7 +596,7 @@ class DrDerChessApp {
     }
 }
 
-// Initialize
+// Initialize - shows main menu
 document.addEventListener('DOMContentLoaded', function() {
     if (typeof Chess === 'undefined') {
         console.error('Chess library not loaded');
