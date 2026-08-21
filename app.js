@@ -2,7 +2,7 @@
 
 class DrDerChessApp {
     constructor() {
-        this.game = null;
+        this.game = new ChessGame();
         this.gameMode = null;
         this.playerColor = 'white';
         this.stockfish = null;
@@ -31,7 +31,7 @@ class DrDerChessApp {
         this.initAudio();
         this.initEventListeners();
         this.registerServiceWorker();
-        // لا تستدعي أي شيء آخر - فقط القائمة الرئيسية
+        // لا نستدعي أي showScreen هنا - القائمة الرئيسية تبقى
     }
     
     cacheDomElements() {
@@ -99,6 +99,7 @@ class DrDerChessApp {
         }
     }
     
+    // ================ Board ================
     buildBoard() {
         const boardContainer = this.elements.chessboard;
         if (!boardContainer) return;
@@ -301,6 +302,7 @@ class DrDerChessApp {
         }
     }
     
+    // ================ Stockfish ================
     initStockfish() {
         if (this.stockfish) {
             this.stockfish.terminate();
@@ -361,6 +363,7 @@ class DrDerChessApp {
         this.stockfish.postMessage('go depth ' + this.stockfishDepth + ' movetime 3000');
     }
     
+    // ================ Game Modes ================
     startComputerGame() {
         this.gameMode = 'computer';
         this.playerColor = this.getRandomColor();
@@ -525,7 +528,7 @@ class DrDerChessApp {
     }
 }
 
-// Initialize - ONLY main menu
+// Initialize
 document.addEventListener('DOMContentLoaded', function() {
     if (typeof Chess === 'undefined') {
         console.error('Chess library not loaded');
