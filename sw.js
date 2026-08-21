@@ -1,6 +1,6 @@
 // ================ DrDer Chess - Service Worker ================
 
-const CACHE_NAME = 'drder-chess-v4.0.0';
+const CACHE_NAME = 'drder-chess-v7.0.0';
 const ASSETS_TO_CACHE = [
     './',
     'index.html',
