@@ -2,7 +2,7 @@
     "name": "DrDer Chess",
     "short_name": "DrDer Chess",
     "description": "لعبة شطرنج احترافية - DrDer Chess",
-    "start_url": ".",
+    "start_url": "./",
     "display": "standalone",
     "display_override": ["standalone", "fullscreen", "minimal-ui"],
     "orientation": "portrait",
@@ -27,5 +27,5 @@
     ],
     "screenshots": [],
     "prefer_related_applications": false,
-    "scope": "."
+    "scope": "./"
 }
