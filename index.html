@@ -17,7 +17,7 @@
 </head>
 <body>
     <!-- الشاشة الرئيسية -->
-    <div id="mainMenu" class="screen active">
+    <div id="mainMenu" class="screen active" style="display:flex; flex-direction:column; justify-content:center; align-items:center;">
         <div class="menu-container">
             <div class="logo-container">
                 <img src="192.png" alt="DrDer Chess Logo" class="logo-icon">
@@ -40,7 +40,7 @@
     </div>
 
     <!-- شاشة اللعبة -->
-    <div id="gameScreen" class="screen">
+    <div id="gameScreen" class="screen" style="display:none; flex-direction:column;">
         <div class="game-header">
             <button id="backToMenuBtn" class="back-btn" type="button">← القائمة</button>
             <div class="game-status">
@@ -87,6 +87,33 @@
             </div>
         </div>
     </div>
+
+    <!-- منع اختفاء القائمة الرئيسية -->
+    <script>
+        window.addEventListener('DOMContentLoaded', function() {
+            var mainMenu = document.getElementById('mainMenu');
+            var gameScreen = document.getElementById('gameScreen');
+            
+            if (mainMenu && gameScreen) {
+                mainMenu.classList.add('active');
+                mainMenu.style.display = 'flex';
+                gameScreen.classList.remove('active');
+                gameScreen.style.display = 'none';
+            }
+        });
+        
+        window.addEventListener('load', function() {
+            var mainMenu = document.getElementById('mainMenu');
+            var gameScreen = document.getElementById('gameScreen');
+            
+            if (mainMenu && gameScreen) {
+                mainMenu.classList.add('active');
+                mainMenu.style.display = 'flex';
+                gameScreen.classList.remove('active');
+                gameScreen.style.display = 'none';
+            }
+        });
+    </script>
 
     <script src="chess.min.js"></script>
     <script src="game.js"></script>
