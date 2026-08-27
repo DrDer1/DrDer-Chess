@@ -31,6 +31,12 @@
     --transition-normal: 0.3s ease;
     
     --font-primary: 'Segoe UI', 'Cairo', 'Tahoma', sans-serif;
+    
+    /* ألوان الرقعة */
+    --square-light: #d4b896;
+    --square-dark: #8b6546;
+    --piece-white: #ffffff;
+    --piece-black: #1a1a1a;
 }
 
 /* ================ Reset & Base ================ */
@@ -310,14 +316,14 @@ body {
     border: 3px solid #2a2a4a;
 }
 
-/* Chess Square - ألوان داكنة مريحة */
+/* Chess Square */
 .chess-square {
     position: absolute;
     cursor: pointer;
     transition: background-color 0.15s;
 }
 
-/* Chess Piece - أكثر واقعية */
+/* Chess Piece */
 .chess-piece {
     position: absolute;
     display: flex;
@@ -334,25 +340,28 @@ body {
     transition: transform 0.1s;
 }
 
+/* القطع البيضاء */
+.chess-piece[data-piece^="w"] {
+    color: var(--piece-white);
+}
+
+/* القطع السوداء */
+.chess-piece[data-piece^="b"] {
+    color: var(--piece-black);
+}
+
 .chess-piece:hover {
     transform: scale(1.08);
 }
 
-/* تابلت وشاشات أكبر - رقعة حقيقية مربعة */
+/* تابلت وشاشات أكبر */
 @media (min-width: 768px) {
-    .board-wrapper {
-        background: #1a1a2e;
-    }
-    
     .chessboard-container {
         width: min(70vh, 600px);
         height: min(70vh, 600px);
         aspect-ratio: 1 / 1;
         border-radius: 8px;
         border: 4px solid #2a2a4a;
-        box-shadow: 
-            0 8px 30px rgba(0, 0, 0, 0.7),
-            0 2px 10px rgba(0, 0, 0, 0.5);
     }
 }
 
