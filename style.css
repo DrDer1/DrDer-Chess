@@ -283,7 +283,7 @@ body {
     flex-shrink: 0;
 }
 
-/* ================ Chessboard - مربعة وألوان داكنة ================ */
+/* ================ Chessboard - مربعة وألوان داكنة مريحة ================ */
 .board-wrapper {
     flex: 1;
     display: flex;
@@ -464,7 +464,7 @@ body {
     }
 }
 
-/* تابلت وشاشات أكبر */
+/* تابلت وشاشات أكبر - رقعة حقيقية مربعة */
 @media (min-width: 768px) {
     .chessboard-container {
         width: min(70vh, 600px);
