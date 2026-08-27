@@ -2,7 +2,7 @@
 
 class DrDerChessApp {
     constructor() {
-        this.game = new ChessGame();
+        this.game = null;
         this.gameMode = null;
         this.playerColor = 'white';
         this.stockfish = null;
@@ -35,7 +35,6 @@ class DrDerChessApp {
     }
     
     forceMainMenu() {
-        // تثبيت صريح للقائمة الرئيسية
         if (this.screens.mainMenu && this.screens.gameScreen) {
             this.screens.mainMenu.classList.add('active');
             this.screens.gameScreen.classList.remove('active');
@@ -533,7 +532,6 @@ class DrDerChessApp {
     
     registerServiceWorker() {
         if ('serviceWorker' in navigator) {
-            // إلغاء أي SW قديم أولاً
             navigator.serviceWorker.getRegistrations()
                 .then(function(registrations) {
                     registrations.forEach(function(registration) {
@@ -541,7 +539,6 @@ class DrDerChessApp {
                     });
                 })
                 .then(function() {
-                    // تسجيل SW الجديد
                     return navigator.serviceWorker.register('sw.js');
                 })
                 .catch(function() {});
