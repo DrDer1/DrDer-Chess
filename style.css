@@ -15,6 +15,11 @@ html, body {
     background-color: #0a0a0a;
     font-family: Arial, sans-serif;
     direction: rtl;
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    -webkit-tap-highlight-color: transparent;
 }
 
 body {
@@ -24,23 +29,62 @@ body {
     background: #0a0a0a;
 }
 
+.hidden {
+    display: none !important;
+}
+
 /* ============================================
-   START SCREEN
+   SCREEN MANAGEMENT
    ============================================ */
 
-.start-screen {
+.screen {
+    display: none;
+    width: 100%;
+    height: 100%;
+    position: fixed;
+    top: 0;
+    left: 0;
+}
+
+.screen.active {
+    display: flex;
+}
+
+/* ============================================
+   START SCREEN (Main Menu)
+   ============================================ */
+
+#mainMenu {
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 35px;
+    padding: 20px;
+}
+
+.menu-container {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     width: 100%;
-    height: 100%;
     gap: 35px;
-    position: relative;
-    padding: 20px;
 }
 
-.start-title {
+.logo-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 15px;
+}
+
+.logo-icon {
+    width: 120px;
+    height: 120px;
+    border-radius: 24px;
+}
+
+.game-title {
     color: #ffd700;
     font-size: clamp(32px, 7vmin, 60px);
     font-weight: bold;
@@ -48,65 +92,70 @@ body {
     text-align: center;
 }
 
-.start-btn {
+.game-subtitle {
+    color: #ccc;
+    font-size: clamp(14px, 2vmin, 20px);
+    text-align: center;
+}
+
+.menu-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    width: 100%;
+    max-width: 350px;
+}
+
+.menu-btn {
     background: #1a1a1a;
     color: #ffd700;
     border: 3px solid #ffd700;
     border-radius: 20px;
-    padding: 16px 50px;
-    font-size: clamp(24px, 5vmin, 38px);
+    padding: 16px 30px;
+    font-size: clamp(18px, 4vmin, 28px);
     font-weight: bold;
     cursor: pointer;
     text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    transition: all 0.2s;
 }
 
-.start-btn:hover {
+.menu-btn:hover {
     background: #ffd700;
     color: #0a0a0a;
 }
 
-.loading-message {
-    text-align: center;
+.menu-btn:active {
+    transform: scale(0.97);
 }
 
-.loading-text {
-    color: #ccc;
-    font-size: clamp(16px, 2.5vmin, 24px);
-    margin-bottom: 12px;
+.primary-btn {
+    background: #1a1a1a;
+    color: #ffd700;
+    border: 3px solid #ffd700;
 }
 
-.loading-dots {
-    display: flex;
-    justify-content: center;
-    gap: 8px;
+.secondary-btn {
+    background: #1a1a1a;
+    color: #ffffff;
+    border: 2px solid #666;
 }
 
-.dot-anim {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    background-color: #ffd700;
-    animation: pulse 1s infinite;
+.secondary-btn:hover {
+    background: #333;
+    color: #ffd700;
+    border-color: #ffd700;
 }
 
-.dot-anim:nth-child(2) {
-    animation-delay: 0.2s;
+.btn-icon {
+    font-size: 1.5em;
 }
 
-.dot-anim:nth-child(3) {
-    animation-delay: 0.4s;
-}
-
-@keyframes pulse {
-    0%, 100% { opacity: 0.2; }
-    50% { opacity: 1; }
-}
-
-.copyright {
-    position: absolute;
-    bottom: 15px;
-    color: #666;
-    font-size: clamp(12px, 2vmin, 16px);
+.btn-text {
+    flex: 1;
     text-align: center;
 }
 
@@ -114,28 +163,72 @@ body {
    GAME SCREEN
    ============================================ */
 
-.game-screen {
-    display: flex;
+#gameScreen {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    width: 100%;
-    height: 100%;
-    gap: 8px;
-    padding: 8px;
+    gap: 6px;
+    padding: 6px;
     overflow: hidden;
 }
 
-.title {
+.game-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: min(85vw, 70vh, 480px);
+    flex-shrink: 0;
+    padding: 0 5px;
+}
+
+.back-btn {
+    background: transparent;
+    border: none;
+    color: #ffd700;
+    font-size: clamp(14px, 2vmin, 20px);
+    cursor: pointer;
+    padding: 5px;
+}
+
+.game-status {
+    text-align: center;
+    flex: 1;
+}
+
+#gameStatusText {
+    display: block;
     color: #ffffff;
-    font-size: clamp(18px, 3vmin, 28px);
+    font-weight: 600;
+    font-size: clamp(13px, 2vmin, 18px);
+}
+
+.move-counter {
+    color: #888;
+    font-size: clamp(11px, 1.5vmin, 14px);
+}
+
+/* ============================================
+   PLAYER NAMES
+   ============================================ */
+
+.opponent-name {
+    color: #ffd700;
+    font-size: clamp(14px, 2vmin, 20px);
+    font-weight: bold;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.player-name-bottom {
+    color: #ffd700;
+    font-size: clamp(14px, 2vmin, 20px);
     font-weight: bold;
     text-align: center;
     flex-shrink: 0;
 }
 
 /* ============================================
-   CHESSBOARD - ثابت في المنتصف
+   CHESSBOARD - مربع ثابت في المنتصف
    ============================================ */
 
 .board-wrapper {
@@ -148,54 +241,57 @@ body {
     flex-grow: 0;
 }
 
-.chessboard {
-    display: grid;
-    grid-template-columns: repeat(8, 1fr);
-    grid-template-rows: repeat(8, 1fr);
+.chessboard-container {
     width: 100%;
     height: 100%;
     border: 2px solid #333;
     overflow: hidden;
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    grid-template-rows: repeat(8, 1fr);
 }
 
-.square {
+/* Squares */
+.chess-square {
     display: flex;
     align-items: center;
     justify-content: center;
     position: relative;
+    cursor: pointer;
 }
 
-.square.light {
-    background: #d4a574;
-}
-
-.square.dark {
-    background: #6b4423;
-}
-
-.square.move-highlight {
-    background: #f1c40f;
-}
-
-.piece {
-    font-size: min(8vw, 7vh, 50px);
+.chess-piece {
+    position: absolute;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 12.5%;
+    height: 12.5%;
+    font-size: min(7vw, 6vh, 45px);
     font-weight: bold;
     line-height: 1;
+    cursor: pointer;
+    pointer-events: all;
+    z-index: 3;
+    transition: top 0.1s, left 0.1s;
 }
 
-.piece.white {
+.chess-piece[data-piece^="w"] {
     color: #ffffff;
+    text-shadow: 0 0 3px rgba(0, 0, 0, 0.8);
 }
 
-.piece.black {
+.chess-piece[data-piece^="b"] {
     color: #000000;
+    text-shadow: 0 0 3px rgba(255, 255, 255, 0.5);
 }
 
 /* ============================================
    CAPTURED PIECES
    ============================================ */
 
-.captured-area {
+.game-footer {
     display: flex;
     flex-direction: column;
     gap: 2px;
@@ -206,14 +302,14 @@ body {
     flex-shrink: 0;
 }
 
-.captured-row {
+.player-info {
     display: flex;
     align-items: center;
     gap: 6px;
     min-height: 20px;
 }
 
-.captured-player-name {
+.player-color {
     color: #ccc;
     font-weight: 600;
     min-width: 30px;
@@ -227,40 +323,10 @@ body {
 }
 
 /* ============================================
-   OPENING + VS
+   MODALS
    ============================================ */
 
-.opening-display {
-    width: min(85vw, 70vh, 480px);
-    text-align: center;
-    padding: 1px;
-    flex-shrink: 0;
-}
-
-.opening-name {
-    color: #ffd700;
-    font-size: clamp(12px, 1.8vmin, 17px);
-    font-weight: 600;
-}
-
-.vs-display {
-    text-align: center;
-    padding: 2px 0;
-    flex-shrink: 0;
-}
-
-.vs-text {
-    color: #ffffff;
-    font-size: clamp(18px, 3vmin, 30px);
-    font-weight: bold;
-    letter-spacing: 3px;
-}
-
-/* ============================================
-   MATCH TRANSITION
-   ============================================ */
-
-.match-transition {
+.modal {
     position: fixed;
     top: 0;
     left: 0;
@@ -268,20 +334,96 @@ body {
     height: 100%;
     background: rgba(0, 0, 0, 0.85);
     display: flex;
-    flex-direction: column;
     align-items: center;
     justify-content: center;
     z-index: 200;
-    gap: 12px;
 }
 
-.transition-text {
-    color: #ccc;
-    font-size: clamp(16px, 2.5vmin, 24px);
+.modal-content {
+    background: #1a1a1a;
+    border: 2px solid #ffd700;
+    border-radius: 15px;
+    padding: 25px;
+    text-align: center;
+    max-width: 350px;
+    width: 90%;
 }
 
-.countdown-number {
+.modal-content h2 {
     color: #ffd700;
-    font-size: clamp(40px, 8vmin, 70px);
-    font-weight: bold;
+    font-size: clamp(20px, 3vmin, 28px);
+    margin-bottom: 10px;
+}
+
+.modal-content h3 {
+    color: #ffd700;
+    font-size: clamp(16px, 2.5vmin, 22px);
+    margin-bottom: 15px;
+}
+
+.modal-content p {
+    color: #ccc;
+    font-size: clamp(14px, 2vmin, 18px);
+    margin-bottom: 15px;
+}
+
+.modal-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.promotion-pieces {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.promotion-piece {
+    width: 55px;
+    height: 55px;
+    font-size: 2.2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #1a1a1a;
+    border: 2px solid #ffd700;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.promotion-piece:hover {
+    background: #ffd700;
+    transform: scale(1.1);
+}
+
+/* ============================================
+   ANIMATIONS
+   ============================================ */
+
+@keyframes pulse {
+    0%, 100% { opacity: 0.2; }
+    50% { opacity: 1; }
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* ============================================
+   RESPONSIVE
+   ============================================ */
+
+@media (max-width: 400px) {
+    .logo-icon {
+        width: 90px;
+        height: 90px;
+    }
+    
+    .game-title {
+        font-size: clamp(28px, 6vmin, 40px);
+    }
 }
