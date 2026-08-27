@@ -22,6 +22,7 @@ class DrDerChessApp {
         this.screens = {};
         this.elements = {};
         this.boardElements = {};
+        this.pieceElements = {};
         
         this.init();
     }
@@ -113,14 +114,17 @@ class DrDerChessApp {
         }
     }
     
+    // ================ Board - بناء مرة واحدة فقط ================
     buildBoard() {
         const boardContainer = this.elements.chessboard;
         if (!boardContainer) return;
         
         boardContainer.innerHTML = '';
-        boardContainer.style.cssText = 'position:relative;width:100%;height:100%;overflow:hidden;';
+        boardContainer.style.cssText = 'position:relative;width:100%;height:100%;overflow:hidden;display:grid;grid-template-columns:repeat(8,1fr);grid-template-rows:repeat(8,1fr);';
         this.boardElements = {};
+        this.pieceElements = {};
         
+        // إنشاء المربعات مرة واحدة
         for (let row = 0; row < 8; row++) {
             for (let col = 0; col < 8; col++) {
                 const square = document.createElement('div');
@@ -130,10 +134,9 @@ class DrDerChessApp {
                 square.className = 'chess-square';
                 square.setAttribute('data-square', squareName);
                 square.style.cssText = 
-                    'position:absolute;width:12.5%;height:12.5%;' +
-                    'top:' + (row * 12.5) + '%;left:' + (col * 12.5) + '%;' +
-                    'background-color:' + (isLight ? '#f0d9b5' : '#b58863') + ';' +
-                    'cursor:pointer;z-index:1;';
+                    'display:flex;align-items:center;justify-content:center;position:relative;' +
+                    'background-color:' + (isLight ? '#d4a574' : '#6b4423') + ';' +
+                    'cursor:pointer;';
                 
                 square.addEventListener('click', () => this.handleSquareClick(squareName));
                 boardContainer.appendChild(square);
@@ -141,11 +144,7 @@ class DrDerChessApp {
             }
         }
         
-        const piecesContainer = document.createElement('div');
-        piecesContainer.id = 'pieces-container';
-        piecesContainer.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;z-index:2;pointer-events:none;';
-        boardContainer.appendChild(piecesContainer);
-        
+        // إنشاء القطع مرة واحدة
         this.renderPieces();
     }
     
@@ -155,11 +154,9 @@ class DrDerChessApp {
         return String.fromCharCode(97 + file) + rank;
     }
     
+    // ================ تحديث القطع فقط بدون إعادة بناء ================
     renderPieces() {
-        const piecesContainer = document.getElementById('pieces-container');
-        if (!piecesContainer || !this.game) return;
-        
-        piecesContainer.innerHTML = '';
+        if (!this.game) return;
         
         const board = this.game.getBoard();
         if (!board) return;
@@ -169,9 +166,17 @@ class DrDerChessApp {
             'bK': '♚', 'bQ': '♛', 'bR': '♜', 'bB': '♝', 'bN': '♞', 'bP': '♟'
         };
         
-        const containerSize = this.elements.chessboard.offsetWidth || 400;
-        const pieceFontSize = containerSize * 0.085;
+        const boardContainer = this.elements.chessboard;
+        const containerSize = boardContainer.offsetWidth || 400;
+        const pieceFontSize = containerSize / 8 * 0.8;
         
+        // إزالة القطع القديمة
+        Object.values(this.pieceElements).forEach(el => {
+            if (el.parentNode) el.parentNode.removeChild(el);
+        });
+        this.pieceElements = {};
+        
+        // وضع القطع في مواضعها
         for (let row = 0; row < 8; row++) {
             for (let col = 0; col < 8; col++) {
                 const piece = board[row][col];
@@ -179,6 +184,9 @@ class DrDerChessApp {
                 
                 const squareName = this.getSquareName(row, col);
                 const pieceKey = piece.color + piece.type.toUpperCase();
+                const squareEl = this.boardElements[squareName];
+                
+                if (!squareEl) continue;
                 
                 const pieceEl = document.createElement('div');
                 pieceEl.className = 'chess-piece';
@@ -186,20 +194,85 @@ class DrDerChessApp {
                 pieceEl.setAttribute('data-square', squareName);
                 pieceEl.textContent = symbols[pieceKey] || '';
                 pieceEl.style.cssText = 
-                    'position:absolute;width:12.5%;height:12.5%;' +
-                    'top:' + (row * 12.5) + '%;left:' + (col * 12.5) + '%;' +
                     'display:flex;align-items:center;justify-content:center;' +
+                    'width:100%;height:100%;' +
                     'font-size:' + pieceFontSize + 'px;' +
-                    'cursor:pointer;user-select:none;pointer-events:all;z-index:3;';
+                    'font-weight:bold;cursor:pointer;' +
+                    'pointer-events:all;z-index:3;';
                 
                 pieceEl.addEventListener('click', () => this.handleSquareClick(squareName));
-                piecesContainer.appendChild(pieceEl);
+                squareEl.appendChild(pieceEl);
+                this.pieceElements[squareName] = pieceEl;
+            }
+        }
+    }
+    
+    // ================ تحريك قطعة فقط ================
+    updateBoardPosition() {
+        if (!this.game) return;
+        
+        const board = this.game.getBoard();
+        if (!board) return;
+        
+        const symbols = {
+            'wK': '♔', 'wQ': '♕', 'wR': '♖', 'wB': '♗', 'wN': '♘', 'wP': '♙',
+            'bK': '♚', 'bQ': '♛', 'bR': '♜', 'bB': '♝', 'bN': '♞', 'bP': '♟'
+        };
+        
+        // إزالة كل القطع القديمة
+        Object.values(this.pieceElements).forEach(el => {
+            if (el.parentNode) el.parentNode.removeChild(el);
+        });
+        this.pieceElements = {};
+        
+        const boardContainer = this.elements.chessboard;
+        const containerSize = boardContainer.offsetWidth || 400;
+        const pieceFontSize = containerSize / 8 * 0.8;
+        
+        // وضع القطع
+        for (let row = 0; row < 8; row++) {
+            for (let col = 0; col < 8; col++) {
+                const piece = board[row][col];
+                if (!piece) continue;
+                
+                const squareName = this.getSquareName(row, col);
+                const pieceKey = piece.color + piece.type.toUpperCase();
+                const squareEl = this.boardElements[squareName];
+                
+                if (!squareEl) continue;
+                
+                const pieceEl = document.createElement('div');
+                pieceEl.className = 'chess-piece';
+                pieceEl.setAttribute('data-piece', pieceKey);
+                pieceEl.textContent = symbols[pieceKey] || '';
+                pieceEl.style.cssText = 
+                    'display:flex;align-items:center;justify-content:center;' +
+                    'width:100%;height:100%;' +
+                    'font-size:' + pieceFontSize + 'px;' +
+                    'font-weight:bold;cursor:pointer;' +
+                    'pointer-events:all;z-index:3;';
+                
+                pieceEl.addEventListener('click', () => this.handleSquareClick(squareName));
+                squareEl.appendChild(pieceEl);
+                this.pieceElements[squareName] = pieceEl;
             }
         }
         
+        // إزالة التحديد القديم
+        this.clearHighlights();
+        
+        // إظهار التحديد إذا وجد
         if (this.game.selectedSquare) {
             this.highlightSelectedAndMoves();
         }
+    }
+    
+    clearHighlights() {
+        Object.values(this.boardElements).forEach(square => {
+            const isLight = square.style.backgroundColor === 'rgb(212, 165, 116)' || 
+                           square.style.backgroundColor === '#d4a574';
+            square.style.backgroundColor = isLight ? '#d4a574' : '#6b4423';
+        });
     }
     
     highlightSelectedAndMoves() {
@@ -208,7 +281,7 @@ class DrDerChessApp {
         
         const selectedEl = this.boardElements[selected];
         if (selectedEl) {
-            selectedEl.style.backgroundColor = '#ffff00';
+            selectedEl.style.backgroundColor = '#f1c40f';
         }
         
         if (this.settings.legalMoves) {
@@ -243,18 +316,18 @@ class DrDerChessApp {
         if (!selected) {
             if (this.game.isSquareSelectable(squareName)) {
                 this.game.selectSquare(squareName);
-                this.buildBoard();
+                this.updateBoardPosition();
             }
         } else {
             if (selected === squareName) {
                 this.game.deselectSquare();
-                this.buildBoard();
+                this.updateBoardPosition();
                 return;
             }
             
             if (this.game.isSquareSelectable(squareName)) {
                 this.game.selectSquare(squareName);
-                this.buildBoard();
+                this.updateBoardPosition();
                 return;
             }
             
@@ -270,7 +343,7 @@ class DrDerChessApp {
                 this.makeMoveAndUpdate(selected, squareName);
             } else {
                 this.game.deselectSquare();
-                this.buildBoard();
+                this.updateBoardPosition();
             }
         }
     }
@@ -281,7 +354,8 @@ class DrDerChessApp {
         const result = this.game.makeMove(from, to, promotion);
         if (!result) return;
         
-        this.buildBoard();
+        // تحديث القطع فقط
+        this.updateBoardPosition();
         this.updateGameStatus();
         this.updateMoveCounter();
         this.updateCapturedPieces();
