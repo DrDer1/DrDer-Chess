@@ -30,8 +30,18 @@ class DrDerChessApp {
         this.cacheDomElements();
         this.initAudio();
         this.initEventListeners();
+        this.forceMainMenu();
         this.registerServiceWorker();
-        // لا نستدعي أي showScreen هنا - القائمة الرئيسية تبقى
+    }
+    
+    forceMainMenu() {
+        // تثبيت صريح للقائمة الرئيسية
+        if (this.screens.mainMenu && this.screens.gameScreen) {
+            this.screens.mainMenu.classList.add('active');
+            this.screens.gameScreen.classList.remove('active');
+            this.screens.mainMenu.style.display = 'flex';
+            this.screens.gameScreen.style.display = 'none';
+        }
     }
     
     cacheDomElements() {
@@ -70,9 +80,14 @@ class DrDerChessApp {
     }
     
     showScreen(screenName) {
-        Object.values(this.screens).forEach(screen => screen.classList.remove('active'));
+        Object.values(this.screens).forEach(screen => {
+            screen.classList.remove('active');
+            screen.style.display = 'none';
+        });
+        
         if (this.screens[screenName]) {
             this.screens[screenName].classList.add('active');
+            this.screens[screenName].style.display = 'flex';
         }
     }
     
@@ -99,7 +114,6 @@ class DrDerChessApp {
         }
     }
     
-    // ================ Board ================
     buildBoard() {
         const boardContainer = this.elements.chessboard;
         if (!boardContainer) return;
@@ -302,7 +316,6 @@ class DrDerChessApp {
         }
     }
     
-    // ================ Stockfish ================
     initStockfish() {
         if (this.stockfish) {
             this.stockfish.terminate();
@@ -363,7 +376,6 @@ class DrDerChessApp {
         this.stockfish.postMessage('go depth ' + this.stockfishDepth + ' movetime 3000');
     }
     
-    // ================ Game Modes ================
     startComputerGame() {
         this.gameMode = 'computer';
         this.playerColor = this.getRandomColor();
@@ -521,9 +533,18 @@ class DrDerChessApp {
     
     registerServiceWorker() {
         if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js').catch(() => {});
-            });
+            // إلغاء أي SW قديم أولاً
+            navigator.serviceWorker.getRegistrations()
+                .then(function(registrations) {
+                    registrations.forEach(function(registration) {
+                        registration.unregister();
+                    });
+                })
+                .then(function() {
+                    // تسجيل SW الجديد
+                    return navigator.serviceWorker.register('sw.js');
+                })
+                .catch(function() {});
         }
     }
 }
