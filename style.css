@@ -283,7 +283,7 @@ body {
     flex-shrink: 0;
 }
 
-/* ================ Chessboard - Full Width, Centered Vertically ================ */
+/* ================ Chessboard ================ */
 .board-wrapper {
     flex: 1;
     display: flex;
@@ -292,6 +292,7 @@ body {
     min-height: 0;
     width: 100%;
     padding: 0;
+    overflow: hidden;
 }
 
 .chessboard-container {
@@ -302,16 +303,17 @@ body {
     border-radius: 0;
     box-shadow: var(--shadow-lg);
     position: relative;
-    margin: 0 auto;
+    margin: 0;
+    flex-shrink: 0;
 }
 
-/* Chess Square Styling */
+/* Chess Square */
 .chess-square {
     position: absolute;
     cursor: pointer;
 }
 
-/* Chess Piece Styling */
+/* Chess Piece */
 .chess-piece {
     position: absolute;
     display: flex;
