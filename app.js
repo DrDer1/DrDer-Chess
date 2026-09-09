@@ -245,15 +245,16 @@ class DrDerChessApp {
                 const square = this.boardElements[squareName];
                 if (!square) continue;
                 
-                let visualRow, visualCol;
+                let flipped = false;
                 
-                if (this.gameMode === 'twoPlayers' && this.twoPlayerFlipped) {
-                    visualRow = 7 - row;
-                    visualCol = 7 - col;
-                } else {
-                    visualRow = row;
-                    visualCol = col;
+                if (this.gameMode === 'twoPlayers') {
+                    flipped = this.twoPlayerFlipped;
+                } else if (this.gameMode === 'computer') {
+                    flipped = this.playerColor === 'black';
                 }
+                
+                const visualRow = flipped ? 7 - row : row;
+                const visualCol = flipped ? 7 - col : col;
                 
                 square.style.gridRow = String(visualRow + 1);
                 square.style.gridColumn = String(visualCol + 1);
@@ -297,7 +298,6 @@ class DrDerChessApp {
                 const squareName = this.getSquareName(row, col);
                 const pieceKey = piece.color + piece.type.toUpperCase();
                 
-                // القطعة توضع دائماً في مربعها الحقيقي
                 const targetSquareEl = this.boardElements[squareName];
                 
                 if (!targetSquareEl) continue;
@@ -380,7 +380,6 @@ class DrDerChessApp {
     handleSquareClick(squareName) {
         if (!this.game) return;
         
-        // dataset.square يحتوي دائماً على الإحداثي الحقيقي للمربع
         const realSquare = squareName;
         
         if (this.game.isGameFinished()) return;
