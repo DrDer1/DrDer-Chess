@@ -8,7 +8,8 @@ class DrDerChessApp {
         this.stockfish = null;
         this.stockfishReady = false;
         this.stockfishThinking = false;
-        this.stockfishDepth = 25;
+        this.stockfishDepth = 40;
+        this.stockfishMoveTime = 20000;
         this.aiTimeout = null;
         this.pendingPromotion = null;
         
@@ -589,10 +590,17 @@ class DrDerChessApp {
                 if (msg === 'readyok') {
                     this.stockfishReady = true;
                     this.stockfish.postMessage('ucinewgame');
-                    this.stockfish.postMessage('setoption name Skill Level value 20');
+                    
+                    // أقصى إعدادات القوة
                     this.stockfish.postMessage('setoption name Threads value 4');
                     this.stockfish.postMessage('setoption name Hash value 256');
-                    this.stockfishDepth = 25;
+                    this.stockfish.postMessage('setoption name UCI_LimitStrength value false');
+                    this.stockfish.postMessage('setoption name Skill Level value 20');
+                    this.stockfish.postMessage('setoption name MultiPV value 1');
+                    this.stockfish.postMessage('setoption name Contempt value 0');
+                    
+                    this.stockfishDepth = 40;
+                    this.stockfishMoveTime = 20000;
                 }
                 
                 if (msg.startsWith('bestmove')) {
@@ -687,7 +695,7 @@ class DrDerChessApp {
         const fen = this.game.getFen();
         this.stockfish.postMessage('position fen ' + fen);
         this.stockfish.postMessage(
-            'go depth ' + this.stockfishDepth + ' movetime 2000'
+            'go depth ' + this.stockfishDepth + ' movetime ' + this.stockfishMoveTime
         );
     }
     
