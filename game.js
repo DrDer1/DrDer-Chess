@@ -78,34 +78,41 @@ class ChessGame {
         return moves.find(move => move.to === to);
     }
 
-    makeMove(from, to, promotion) {
+    makeMove(from, to, promotion = 'q') {
         if (this.isGameOver) return null;
 
         const piece = this.chess.get(from);
-        
         if (piece && piece.type === 'p') {
             const targetRank = to.charAt(1);
-            const isPromotionRank = (
-                (piece.color === 'w' && targetRank === '8') ||
-                (piece.color === 'b' && targetRank === '1')
-            );
-            
+            const isPromotionRank = (piece.color === 'w' && targetRank === '8') || (piece.color === 'b' && targetRank === '1');
             if (isPromotionRank) {
-                // إذا كانت الترقية غير محددة أو غير صالحة
-                const validPromotions = ['q', 'r', 'b', 'n'];
-                if (!promotion || !validPromotions.includes(promotion)) {
+                // إذا لم تكن هناك ترقية معلقة، اطلب من اللاعب اختيار القطعة
+                if (!this.pendingPromotion) {
                     this.pendingPromotion = { from, to, color: piece.color };
                     return { needsPromotion: true, from, to, color: piece.color };
+                }
+                // تأكد أن الاختيار يخص نفس حركة الترقية
+                if (
+                    this.pendingPromotion.from !== from ||
+                    this.pendingPromotion.to !== to ||
+                    this.pendingPromotion.color !== piece.color
+                ) {
+                    return null;
+                }
+                // السماح فقط بالقطع الأربع
+                if (!['q', 'r', 'b', 'n'].includes(promotion)) {
+                    return null;
                 }
             }
         }
 
-        const moveResult = this.chess.move({ from, to, promotion: promotion || 'q' });
-        
+        const moveResult = this.chess.move({ from, to, promotion });
         if (!moveResult) {
             return null;
         }
 
+        // انتهت عملية الترقية
+        this.pendingPromotion = null;
         this.afterMove(moveResult);
         return moveResult;
     }
