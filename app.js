@@ -56,7 +56,6 @@ class DrDerChessApp {
             twoPlayersBtn: document.getElementById('twoPlayersBtn'),
             chessboard: document.getElementById('chessboard'),
             gameStatusText: document.getElementById('gameStatusText'),
-            moveCounter: document.getElementById('moveCounter'),
             backToMenuBtn: document.getElementById('backToMenuBtn'),
             opponentName: document.getElementById('opponentName'),
             playerNameBottom: document.getElementById('playerNameBottom'),
@@ -533,7 +532,6 @@ class DrDerChessApp {
     afterMoveUpdate(result) {
         this.renderPieces();
         this.updateGameStatus();
-        this.updateMoveCounter();
         this.updateCapturedPieces();
         
         if (this.game.isGameFinished()) {
@@ -708,7 +706,6 @@ class DrDerChessApp {
         this.showScreen('gameScreen');
         this.buildBoard();
         this.updateGameStatus();
-        this.updateMoveCounter();
         this.updateCapturedPieces();
         
         if (this.isComputerTurn()) {
@@ -739,7 +736,6 @@ class DrDerChessApp {
         this.showScreen('gameScreen');
         this.buildBoard();
         this.updateGameStatus();
-        this.updateMoveCounter();
         this.updateCapturedPieces();
     }
     
@@ -757,20 +753,7 @@ class DrDerChessApp {
             return;
         }
         
-        const turn = this.game.getTurn();
-        const turnText = turn === 'w' ? 'دور الأبيض' : 'دور الأسود';
-        
-        if (this.game.isInCheck()) {
-            this.elements.gameStatusText.textContent = turnText + ' - كش!';
-        } else {
-            this.elements.gameStatusText.textContent = turnText;
-        }
-    }
-    
-    updateMoveCounter() {
-        if (!this.elements.moveCounter || !this.game) return;
-        const moves = this.game.getMoveHistory().length;
-        this.elements.moveCounter.textContent = 'النقلة: ' + (Math.floor(moves / 2) + 1);
+        this.elements.gameStatusText.textContent = '';
     }
     
     updateCapturedPieces() {
