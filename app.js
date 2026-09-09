@@ -231,7 +231,35 @@ class DrDerChessApp {
             this.handleSquareClick(squareName);
         };
         
+        this.updateBoardOrientation();
         this.renderPieces();
+    }
+    
+    // ================ تحديث اتجاه اللوحة ================
+    updateBoardOrientation() {
+        const boardContainer = this.elements.chessboard;
+        if (!boardContainer) return;
+        
+        for (let row = 0; row < 8; row++) {
+            for (let col = 0; col < 8; col++) {
+                const squareName = this.getSquareName(row, col);
+                const square = this.boardElements[squareName];
+                if (!square) continue;
+                
+                let visualRow, visualCol;
+                
+                if (this.gameMode === 'twoPlayers' && this.twoPlayerFlipped) {
+                    visualRow = 7 - row;
+                    visualCol = 7 - col;
+                } else {
+                    visualRow = row;
+                    visualCol = col;
+                }
+                
+                square.style.gridRow = String(visualRow + 1);
+                square.style.gridColumn = String(visualCol + 1);
+            }
+        }
     }
     
     getSquareName(row, col) {
@@ -249,37 +277,7 @@ class DrDerChessApp {
             return realFile + realRank;
         }
         
-        if (
-            this.gameMode === 'computer' &&
-            this.getComputerChessColor() === 'w'
-        ) {
-            const file = visualSquare.charAt(0);
-            const rank = parseInt(visualSquare.charAt(1), 10);
-            return file + (9 - rank);
-        }
-        
         return visualSquare;
-    }
-    
-    getVisualSquare(realSquare) {
-        if (this.gameMode === 'twoPlayers' && this.twoPlayerFlipped) {
-            const file = realSquare.charAt(0);
-            const rank = parseInt(realSquare.charAt(1), 10);
-            const visualFile = String.fromCharCode(105 - file.charCodeAt(0));
-            const visualRank = 9 - rank;
-            return visualFile + visualRank;
-        }
-        
-        if (
-            this.gameMode === 'computer' &&
-            this.getComputerChessColor() === 'w'
-        ) {
-            const file = realSquare.charAt(0);
-            const rank = parseInt(realSquare.charAt(1), 10);
-            return file + (9 - rank);
-        }
-        
-        return realSquare;
     }
     
     renderPieces() {
@@ -312,8 +310,8 @@ class DrDerChessApp {
                 const squareName = this.getSquareName(row, col);
                 const pieceKey = piece.color + piece.type.toUpperCase();
                 
-                const visualSquareName = this.getVisualSquare(squareName);
-                const targetSquareEl = this.boardElements[visualSquareName];
+                // القطعة توضع دائماً في مربعها الحقيقي
+                const targetSquareEl = this.boardElements[squareName];
                 
                 if (!targetSquareEl) continue;
                 
@@ -361,17 +359,14 @@ class DrDerChessApp {
         const selected = this.game.selectedSquare;
         if (!selected) return;
         
-        const visualSelected = this.getVisualSquare(selected);
-        
-        const selectedEl = this.boardElements[visualSelected];
+        const selectedEl = this.boardElements[selected];
         if (selectedEl) {
             selectedEl.style.backgroundColor = '#f1c40f';
         }
         
         if (this.settings.legalMoves) {
             this.game.legalMovesForSelected.forEach(move => {
-                const visualTarget = this.getVisualSquare(move.to);
-                const squareEl = this.boardElements[visualTarget];
+                const squareEl = this.boardElements[move.to];
                 if (squareEl) {
                     const dot = document.createElement('div');
                     dot.style.cssText = 
@@ -388,11 +383,8 @@ class DrDerChessApp {
         const lastMove = this.game.getLastMove();
         if (!lastMove) return;
         
-        const visualFrom = this.getVisualSquare(lastMove.from);
-        const visualTo = this.getVisualSquare(lastMove.to);
-        
-        const fromEl = this.boardElements[visualFrom];
-        const toEl = this.boardElements[visualTo];
+        const fromEl = this.boardElements[lastMove.from];
+        const toEl = this.boardElements[lastMove.to];
         
         if (fromEl) fromEl.style.backgroundColor = 'rgba(241, 196, 15, 0.4)';
         if (toEl) toEl.style.backgroundColor = 'rgba(241, 196, 15, 0.6)';
@@ -509,6 +501,7 @@ class DrDerChessApp {
     afterMoveUpdate(result) {
         if (this.gameMode === 'twoPlayers') {
             this.twoPlayerFlipped = !this.twoPlayerFlipped;
+            this.updateBoardOrientation();
         }
         
         this.renderPieces();
