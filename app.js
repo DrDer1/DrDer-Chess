@@ -239,7 +239,6 @@ class DrDerChessApp {
         const boardContainer = this.elements.chessboard;
         if (!boardContainer) return;
         
-        // لا دوران للرقعة أبداً
         boardContainer.style.transform = 'rotate(0deg)';
     }
     
@@ -247,6 +246,19 @@ class DrDerChessApp {
         const file = String.fromCharCode(97 + col);
         const rank = 8 - row;
         return file + rank;
+    }
+    
+    // ================ تحويل المربع البصري إلى مربع حقيقي ================
+    getRealSquareFromVisual(visualSquare) {
+        if (
+            this.gameMode === 'computer' &&
+            this.getComputerChessColor() === 'w'
+        ) {
+            const file = visualSquare.charAt(0);
+            const rank = parseInt(visualSquare.charAt(1), 10);
+            return file + (9 - rank);
+        }
+        return visualSquare;
     }
     
     renderPieces() {
@@ -273,14 +285,6 @@ class DrDerChessApp {
         
         const computerColor = this.gameMode === 'computer' ? this.getComputerChessColor() : null;
         
-        // تحديد انعكاس العرض البصري
-        // عندما يكون الكمبيوتر أبيض (w): يجب أن يظهر الأبيض في الأعلى
-        // الترتيب الطبيعي: board[0] = rank 8 (أعلى)، board[7] = rank 1 (أسفل)
-        // في الوضع الطبيعي: الأبيض في rank 1-2 = board[6-7] (أسفل)
-        // لذلك عندما يكون الكمبيوتر أبيض، يجب عكس العرض الرأسي
-        
-        let visualRow;
-        
         for (let row = 0; row < 8; row++) {
             for (let col = 0; col < 8; col++) {
                 const piece = board[row][col];
@@ -289,18 +293,15 @@ class DrDerChessApp {
                 const squareName = this.getSquareName(row, col);
                 const pieceKey = piece.color + piece.type.toUpperCase();
                 
-                // تحديد المربع البصري الذي ستوضع فيه القطعة
                 let targetSquareName = squareName;
                 
                 if (this.gameMode === 'computer') {
                     if (computerColor === 'w') {
-                        // عكس رأسي: rank 1 (صف 7) يظهر في rank 8 (صف 0)
                         const file = squareName.charAt(0);
                         const rank = parseInt(squareName.charAt(1));
                         const visualRank = 9 - rank;
                         targetSquareName = file + visualRank;
                     }
-                    // إذا كان الكمبيوتر أسود: لا عكس (الأسود أصلاً في الأعلى)
                 }
                 
                 const targetSquareEl = this.boardElements[targetSquareName];
@@ -424,6 +425,10 @@ class DrDerChessApp {
     
     handleSquareClick(squareName) {
         if (!this.game) return;
+        
+        // تحويل المربع البصري إلى المربع الحقيقي
+        squareName = this.getRealSquareFromVisual(squareName);
+        
         if (this.game.isGameFinished()) return;
         if (this.gameMode === 'computer' && this.stockfishThinking) {
             return;
