@@ -130,11 +130,41 @@ class DrDerChessApp {
         if (this.gameMode !== 'computer') {
             return true;
         }
+        if (this.playerColor !== 'white' && this.playerColor !== 'black') {
+            console.error('Invalid player color:', this.playerColor);
+            this.playerColor = 'white';
+            return false;
+        }
         const playerColor = this.getPlayerChessColor();
         const computerColor = this.getComputerChessColor();
         if (playerColor === computerColor) {
             console.error('Player/Computer color conflict detected');
-            this.playerColor = this.playerColor === 'white' ? 'black' : 'white';
+            return false;
+        }
+        return true;
+    }
+    
+    verifyMoveOwnership(from, expectedColor) {
+        if (!this.game) {
+            return false;
+        }
+        const piece = this.game.getPiece(from);
+        if (!piece) {
+            console.error('Move rejected: no piece on square', from);
+            return false;
+        }
+        if (piece.color !== expectedColor) {
+            console.error(
+                'Move rejected: piece color conflict',
+                { square: from, pieceColor: piece.color, expectedColor: expectedColor }
+            );
+            return false;
+        }
+        if (this.game.getTurn() !== expectedColor) {
+            console.error(
+                'Move rejected: turn/color conflict',
+                { turn: this.game.getTurn(), expectedColor: expectedColor }
+            );
             return false;
         }
         return true;
@@ -358,10 +388,45 @@ class DrDerChessApp {
     makeMoveAndUpdate(from, to, promotion = 'q') {
         if (!this.game) return;
         
+        const isComputerMove = this.gameMode === 'computer' && this.isComputerTurn();
+        
+        if (this.gameMode === 'computer') {
+            const playerColor = this.getPlayerChessColor();
+            const computerColor = this.getComputerChessColor();
+            const currentTurn = this.game.getTurn();
+            const expectedColor = currentTurn === playerColor ? playerColor : computerColor;
+            
+            if (!this.verifyMoveOwnership(from, expectedColor)) {
+                this.stockfishThinking = false;
+                this.updateGameStatus();
+                return;
+            }
+        }
+        
         const result = this.game.makeMove(from, to, promotion);
-        if (!result) return;
+        if (!result) {
+            this.stockfishThinking = false;
+            this.updateGameStatus();
+            return;
+        }
         
         if (result.needsPromotion) {
+            if (isComputerMove) {
+                const promotionPiece = promotion || 'q';
+                const moveResult = this.game.makeMove(
+                    result.from,
+                    result.to,
+                    promotionPiece
+                );
+                if (moveResult && !moveResult.needsPromotion) {
+                    this.stockfishThinking = false;
+                    this.afterMoveUpdate(moveResult);
+                } else {
+                    this.stockfishThinking = false;
+                    this.updateGameStatus();
+                }
+                return;
+            }
             this.pendingPromotion = { from: result.from, to: result.to, color: result.color };
             this.showPromotionModal(result.color);
             return;
@@ -379,6 +444,7 @@ class DrDerChessApp {
         if (this.game.isGameFinished()) {
             this.playSound('gameOver');
             this.showGameOverModal();
+            this.stockfishThinking = false;
             return;
         }
         
@@ -393,15 +459,14 @@ class DrDerChessApp {
         }
         
         if (this.gameMode === 'computer') {
-            const turn = this.game.getTurn();
-            const computerColor = this.getComputerChessColor();
+            if (this.aiTimeout) {
+                clearTimeout(this.aiTimeout);
+                this.aiTimeout = null;
+            }
             
-            if (turn === computerColor) {
+            if (this.isComputerTurn()) {
                 this.stockfishThinking = true;
                 this.updateGameStatus();
-                if (this.aiTimeout) {
-                    clearTimeout(this.aiTimeout);
-                }
                 this.aiTimeout = setTimeout(() => {
                     this.aiTimeout = null;
                     this.makeAIMove();
@@ -426,7 +491,7 @@ class DrDerChessApp {
             this.stockfish = new Worker('stockfish.js');
             
             this.stockfish.onmessage = (event) => {
-                const msg = event.data;
+                const msg = String(event.data || '');
                 
                 if (msg === 'readyok') {
                     this.stockfishReady = true;
@@ -439,19 +504,30 @@ class DrDerChessApp {
                 
                 if (msg.startsWith('bestmove')) {
                     const bestMove = msg.split(' ')[1];
-                    if (bestMove && bestMove !== '(none)' && this.stockfishThinking) {
-                        this.stockfishThinking = false;
-                        
-                        if (!this.isComputerTurn()) {
-                            this.updateGameStatus();
-                            return;
-                        }
-                        
-                        const from = bestMove.substring(0, 2);
-                        const to = bestMove.substring(2, 4);
-                        const promotion = bestMove.length > 4 ? bestMove.substring(4, 5) : 'q';
-                        this.makeMoveAndUpdate(from, to, promotion);
+                    
+                    if (!bestMove || bestMove === '(none)' || !this.stockfishThinking) {
+                        return;
                     }
+                    
+                    if (!this.isComputerTurn()) {
+                        this.stockfishThinking = false;
+                        this.updateGameStatus();
+                        return;
+                    }
+                    
+                    const from = bestMove.substring(0, 2);
+                    const to = bestMove.substring(2, 4);
+                    const promotion = bestMove.length > 4 ? bestMove.substring(4, 5) : 'q';
+                    
+                    const computerColor = this.getComputerChessColor();
+                    const piece = this.game.getPiece(from);
+                    if (!piece || piece.color !== computerColor) {
+                        this.stockfishThinking = false;
+                        console.error('Stockfish returned a move for the wrong color');
+                        return;
+                    }
+                    
+                    this.makeMoveAndUpdate(from, to, promotion);
                 }
             };
             
@@ -463,14 +539,19 @@ class DrDerChessApp {
     }
     
     makeAIMove() {
-        if (!this.game || this.game.isGameFinished()) {
+        if (!this.game) {
             this.stockfishThinking = false;
-            this.updateGameStatus();
             return;
         }
         
         if (this.gameMode !== 'computer') {
             this.stockfishThinking = false;
+            return;
+        }
+        
+        if (this.game.isGameFinished()) {
+            this.stockfishThinking = false;
+            this.updateGameStatus();
             return;
         }
         
@@ -490,7 +571,13 @@ class DrDerChessApp {
                         this.updateGameStatus();
                         return;
                     }
-                    this.stockfishThinking = false;
+                    
+                    if (!this.isComputerTurn()) {
+                        this.stockfishThinking = false;
+                        this.updateGameStatus();
+                        return;
+                    }
+                    
                     this.makeMoveAndUpdate(
                         randomMove.from,
                         randomMove.to,
@@ -530,10 +617,13 @@ class DrDerChessApp {
         
         this.showScreen('gameScreen');
         
-        if (this.playerColor === 'black') {
+        if (this.isComputerTurn()) {
             this.stockfishThinking = true;
             this.updateGameStatus();
-            this.aiTimeout = setTimeout(() => this.makeAIMove(), 500);
+            this.aiTimeout = setTimeout(() => {
+                this.aiTimeout = null;
+                this.makeAIMove();
+            }, 500);
         }
     }
     
