@@ -23,6 +23,7 @@ class DrDerChessApp {
         this.elements = {};
         this.boardElements = {};
         this.pieceElements = {};
+        this.boardBuilt = false;
         
         this.init();
     }
@@ -123,8 +124,9 @@ class DrDerChessApp {
         boardContainer.style.cssText = 'position:relative;width:100%;height:100%;overflow:hidden;display:grid;grid-template-columns:repeat(8,1fr);grid-template-rows:repeat(8,1fr);';
         this.boardElements = {};
         this.pieceElements = {};
+        this.boardBuilt = true;
         
-        // إنشاء المربعات مرة واحدة
+        // إنشاء المربعات
         for (let row = 0; row < 8; row++) {
             for (let col = 0; col < 8; col++) {
                 const square = document.createElement('div');
@@ -144,7 +146,7 @@ class DrDerChessApp {
             }
         }
         
-        // إنشاء القطع مرة واحدة
+        // وضع القطع
         this.renderPieces();
     }
     
@@ -154,9 +156,9 @@ class DrDerChessApp {
         return String.fromCharCode(97 + file) + rank;
     }
     
-    // ================ تحديث القطع فقط بدون إعادة بناء ================
+    // ================ تحديث القطع فقط ================
     renderPieces() {
-        if (!this.game) return;
+        if (!this.game || !this.boardBuilt) return;
         
         const board = this.game.getBoard();
         if (!board) return;
@@ -165,10 +167,6 @@ class DrDerChessApp {
             'wK': '♔', 'wQ': '♕', 'wR': '♖', 'wB': '♗', 'wN': '♘', 'wP': '♙',
             'bK': '♚', 'bQ': '♛', 'bR': '♜', 'bB': '♝', 'bN': '♞', 'bP': '♟'
         };
-        
-        const boardContainer = this.elements.chessboard;
-        const containerSize = boardContainer.offsetWidth || 400;
-        const pieceFontSize = containerSize / 8 * 0.8;
         
         // إزالة القطع القديمة
         Object.values(this.pieceElements).forEach(el => {
@@ -176,58 +174,12 @@ class DrDerChessApp {
         });
         this.pieceElements = {};
         
-        // وضع القطع في مواضعها
-        for (let row = 0; row < 8; row++) {
-            for (let col = 0; col < 8; col++) {
-                const piece = board[row][col];
-                if (!piece) continue;
-                
-                const squareName = this.getSquareName(row, col);
-                const pieceKey = piece.color + piece.type.toUpperCase();
-                const squareEl = this.boardElements[squareName];
-                
-                if (!squareEl) continue;
-                
-                const pieceEl = document.createElement('div');
-                pieceEl.className = 'chess-piece';
-                pieceEl.setAttribute('data-piece', pieceKey);
-                pieceEl.setAttribute('data-square', squareName);
-                pieceEl.textContent = symbols[pieceKey] || '';
-                pieceEl.style.cssText = 
-                    'display:flex;align-items:center;justify-content:center;' +
-                    'width:100%;height:100%;' +
-                    'font-size:' + pieceFontSize + 'px;' +
-                    'font-weight:bold;cursor:pointer;' +
-                    'pointer-events:all;z-index:3;';
-                
-                pieceEl.addEventListener('click', () => this.handleSquareClick(squareName));
-                squareEl.appendChild(pieceEl);
-                this.pieceElements[squareName] = pieceEl;
-            }
-        }
-    }
-    
-    // ================ تحريك قطعة فقط ================
-    updateBoardPosition() {
-        if (!this.game) return;
-        
-        const board = this.game.getBoard();
-        if (!board) return;
-        
-        const symbols = {
-            'wK': '♔', 'wQ': '♕', 'wR': '♖', 'wB': '♗', 'wN': '♘', 'wP': '♙',
-            'bK': '♚', 'bQ': '♛', 'bR': '♜', 'bB': '♝', 'bN': '♞', 'bP': '♟'
-        };
-        
-        // إزالة كل القطع القديمة
-        Object.values(this.pieceElements).forEach(el => {
-            if (el.parentNode) el.parentNode.removeChild(el);
-        });
-        this.pieceElements = {};
+        // إزالة النقاط القديمة
+        this.clearAllHighlights();
         
         const boardContainer = this.elements.chessboard;
         const containerSize = boardContainer.offsetWidth || 400;
-        const pieceFontSize = containerSize / 8 * 0.8;
+        const pieceFontSize = containerSize / 8 * 0.75;
         
         // وضع القطع
         for (let row = 0; row < 8; row++) {
@@ -250,7 +202,8 @@ class DrDerChessApp {
                     'width:100%;height:100%;' +
                     'font-size:' + pieceFontSize + 'px;' +
                     'font-weight:bold;cursor:pointer;' +
-                    'pointer-events:all;z-index:3;';
+                    'pointer-events:all;z-index:3;' +
+                    'transition:transform 0.1s;';
                 
                 pieceEl.addEventListener('click', () => this.handleSquareClick(squareName));
                 squareEl.appendChild(pieceEl);
@@ -258,24 +211,35 @@ class DrDerChessApp {
             }
         }
         
-        // إزالة التحديد القديم
-        this.clearHighlights();
+        // إظهار التحديد
+        this.showSelection();
         
-        // إظهار التحديد إذا وجد
-        if (this.game.selectedSquare) {
-            this.highlightSelectedAndMoves();
-        }
+        // إظهار الحركة الأخيرة
+        this.showLastMove();
     }
     
-    clearHighlights() {
+    clearAllHighlights() {
+        // إعادة ألوان المربعات
         Object.values(this.boardElements).forEach(square => {
-            const isLight = square.style.backgroundColor === 'rgb(212, 165, 116)' || 
-                           square.style.backgroundColor === '#d4a574';
-            square.style.backgroundColor = isLight ? '#d4a574' : '#6b4423';
+            const squareName = square.getAttribute('data-square');
+            if (squareName) {
+                const col = squareName.charCodeAt(0) - 97;
+                const row = 8 - parseInt(squareName[1]);
+                const isLight = (row + col) % 2 === 0;
+                square.style.backgroundColor = isLight ? '#d4a574' : '#6b4423';
+            }
+        });
+        
+        // إزالة النقاط
+        Object.values(this.boardElements).forEach(square => {
+            const dots = square.querySelectorAll('div');
+            dots.forEach(dot => {
+                if (dot.style.width === '30%') dot.remove();
+            });
         });
     }
     
-    highlightSelectedAndMoves() {
+    showSelection() {
         const selected = this.game.selectedSquare;
         if (!selected) return;
         
@@ -292,11 +256,22 @@ class DrDerChessApp {
                     dot.style.cssText = 
                         'position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);' +
                         'width:30%;height:30%;border-radius:50%;' +
-                        'background-color:rgba(0,0,0,0.3);pointer-events:none;z-index:2;';
+                        'background-color:rgba(0,0,0,0.3);pointer-events:none;';
                     squareEl.appendChild(dot);
                 }
             });
         }
+    }
+    
+    showLastMove() {
+        const lastMove = this.game.getLastMove();
+        if (!lastMove) return;
+        
+        const fromEl = this.boardElements[lastMove.from];
+        const toEl = this.boardElements[lastMove.to];
+        
+        if (fromEl) fromEl.style.backgroundColor = 'rgba(241, 196, 15, 0.4)';
+        if (toEl) toEl.style.backgroundColor = 'rgba(241, 196, 15, 0.6)';
     }
     
     handleSquareClick(squareName) {
@@ -316,34 +291,26 @@ class DrDerChessApp {
         if (!selected) {
             if (this.game.isSquareSelectable(squareName)) {
                 this.game.selectSquare(squareName);
-                this.updateBoardPosition();
+                this.renderPieces();
             }
         } else {
             if (selected === squareName) {
                 this.game.deselectSquare();
-                this.updateBoardPosition();
+                this.renderPieces();
                 return;
             }
             
             if (this.game.isSquareSelectable(squareName)) {
                 this.game.selectSquare(squareName);
-                this.updateBoardPosition();
+                this.renderPieces();
                 return;
             }
             
             if (this.game.isLegalMove(selected, squareName)) {
-                const moveDetails = this.game.getMoveDetails(selected, squareName);
-                
-                if (moveDetails && moveDetails.promotion) {
-                    this.pendingPromotion = { from: selected, to: squareName, color: this.game.getTurn() };
-                    this.showPromotionModal(this.game.getTurn());
-                    return;
-                }
-                
                 this.makeMoveAndUpdate(selected, squareName);
             } else {
                 this.game.deselectSquare();
-                this.updateBoardPosition();
+                this.renderPieces();
             }
         }
     }
@@ -354,12 +321,24 @@ class DrDerChessApp {
         const result = this.game.makeMove(from, to, promotion);
         if (!result) return;
         
-        // تحديث القطع فقط
-        this.updateBoardPosition();
+        // إذا كانت ترقية، أظهر النافذة
+        if (result.needsPromotion) {
+            this.pendingPromotion = { from: result.from, to: result.to, color: result.color };
+            this.showPromotionModal(result.color);
+            return;
+        }
+        
+        this.afterMoveUpdate(result);
+    }
+    
+    afterMoveUpdate(result) {
+        // تحديث الرقعة
+        this.renderPieces();
         this.updateGameStatus();
         this.updateMoveCounter();
         this.updateCapturedPieces();
         
+        // صوت
         if (this.game.isGameFinished()) {
             this.playSound('gameOver');
             this.showGameOverModal();
@@ -376,6 +355,7 @@ class DrDerChessApp {
             this.playSound('move');
         }
         
+        // دور الكمبيوتر
         if (this.gameMode === 'computer') {
             const turn = this.game.getTurn();
             const computerColor = this.playerColor === 'white' ? 'b' : 'w';
@@ -384,7 +364,7 @@ class DrDerChessApp {
                 (computerColor === 'b' && turn === 'b')) {
                 this.stockfishThinking = true;
                 this.updateGameStatus();
-                this.aiTimeout = setTimeout(() => this.makeAIMove(), 300);
+                this.aiTimeout = setTimeout(() => this.makeAIMove(), 200);
             }
         }
     }
@@ -439,20 +419,21 @@ class DrDerChessApp {
             const moves = this.game.getLegalMoves();
             if (moves.length > 0) {
                 const randomMove = moves[Math.floor(Math.random() * moves.length)];
-                setTimeout(() => this.makeMoveAndUpdate(randomMove.from, randomMove.to, randomMove.promotion || 'q'), 300);
+                setTimeout(() => this.makeMoveAndUpdate(randomMove.from, randomMove.to, randomMove.promotion || 'q'), 200);
             }
             return;
         }
         
         const fen = this.game.getFen();
         this.stockfish.postMessage('position fen ' + fen);
-        this.stockfish.postMessage('go depth ' + this.stockfishDepth + ' movetime 3000');
+        this.stockfish.postMessage('go depth ' + this.stockfishDepth + ' movetime 2000');
     }
     
     startComputerGame() {
         this.gameMode = 'computer';
         this.playerColor = this.getRandomColor();
         this.game = new ChessGame();
+        this.boardBuilt = false;
         
         this.initStockfish();
         
@@ -477,6 +458,7 @@ class DrDerChessApp {
         this.gameMode = 'twoPlayers';
         this.playerColor = this.getRandomColor();
         this.game = new ChessGame();
+        this.boardBuilt = false;
         
         if (this.stockfish) {
             this.stockfish.terminate();
@@ -551,8 +533,12 @@ class DrDerChessApp {
             div.addEventListener('click', () => {
                 this.closePromotionModal();
                 if (this.pendingPromotion) {
-                    this.makeMoveAndUpdate(this.pendingPromotion.from, this.pendingPromotion.to, piece);
+                    const pending = this.pendingPromotion;
                     this.pendingPromotion = null;
+                    const result = this.game.makeMove(pending.from, pending.to, piece);
+                    if (result && !result.needsPromotion) {
+                        this.afterMoveUpdate(result);
+                    }
                 }
             });
             this.elements.promotionPieces.appendChild(div);
