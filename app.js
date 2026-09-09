@@ -195,10 +195,12 @@ class DrDerChessApp {
         if (!boardContainer) return;
         
         boardContainer.innerHTML = '';
-        boardContainer.style.cssText = 'position:relative;width:100%;height:100%;overflow:hidden;display:grid;grid-template-columns:repeat(8,1fr);grid-template-rows:repeat(8,1fr);';
+        boardContainer.style.cssText = 'position:relative;width:100%;height:100%;overflow:hidden;display:grid;grid-template-columns:repeat(8,1fr);grid-template-rows:repeat(8,1fr);transition:transform 0.3s;';
         this.boardElements = {};
         this.pieceElements = {};
         this.boardBuilt = true;
+        
+        this.applyBoardOrientation();
         
         for (let row = 0; row < 8; row++) {
             for (let col = 0; col < 8; col++) {
@@ -218,7 +220,6 @@ class DrDerChessApp {
             }
         }
         
-        // Event Delegation - مرة واحدة فقط على الحاوية
         boardContainer.onclick = (event) => {
             const square = event.target.closest('.chess-square');
             if (!square || !boardContainer.contains(square)) {
@@ -232,6 +233,30 @@ class DrDerChessApp {
         };
         
         this.renderPieces();
+    }
+    
+    applyBoardOrientation() {
+        const boardContainer = this.elements.chessboard;
+        if (!boardContainer) return;
+        
+        if (this.gameMode === 'computer') {
+            const computerColor = this.getComputerChessColor();
+            if (computerColor === 'b') {
+                boardContainer.style.transform = 'rotate(180deg)';
+            } else {
+                boardContainer.style.transform = 'rotate(0deg)';
+            }
+        } else if (this.gameMode === 'twoPlayers') {
+            // في وضع اللاعبين: DrDer (الأسفل) يلعب باللون العشوائي
+            // إذا كان DrDer أسود، الرقعة تدور 180 درجة ليظهر الأسود في الأسفل
+            if (this.playerColor === 'black') {
+                boardContainer.style.transform = 'rotate(180deg)';
+            } else {
+                boardContainer.style.transform = 'rotate(0deg)';
+            }
+        } else {
+            boardContainer.style.transform = 'rotate(0deg)';
+        }
     }
     
     getSquareName(row, col) {
@@ -358,7 +383,6 @@ class DrDerChessApp {
         const selected = this.game.selectedSquare;
         const clickedPiece = this.game.getPiece(squareName);
         
-        // وضع الكمبيوتر
         if (this.gameMode === 'computer') {
             const playerColor = this.getPlayerChessColor();
             if (this.game.getTurn() !== playerColor) {
@@ -375,7 +399,6 @@ class DrDerChessApp {
             }
         }
         
-        // لا توجد قطعة محددة
         if (!selected) {
             if (this.game.isSquareSelectable(squareName)) {
                 this.game.selectSquare(squareName);
@@ -384,27 +407,23 @@ class DrDerChessApp {
             return;
         }
         
-        // الضغط على نفس القطعة
         if (selected === squareName) {
             this.game.deselectSquare();
             this.renderPieces();
             return;
         }
         
-        // الضغط على قطعة من نفس اللون
         if (this.game.isSquareSelectable(squareName)) {
             this.game.selectSquare(squareName);
             this.renderPieces();
             return;
         }
         
-        // تنفيذ الحركة
         if (this.game.isLegalMove(selected, squareName)) {
             this.makeMoveAndUpdate(selected, squareName);
             return;
         }
         
-        // نقرة غير صالحة
         this.game.deselectSquare();
         this.renderPieces();
     }
