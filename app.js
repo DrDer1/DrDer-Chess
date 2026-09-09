@@ -248,7 +248,6 @@ class DrDerChessApp {
         return file + rank;
     }
     
-    // ================ تحويل المربع البصري إلى مربع حقيقي ================
     getRealSquareFromVisual(visualSquare) {
         if (
             this.gameMode === 'computer' &&
@@ -793,18 +792,40 @@ class DrDerChessApp {
             'bq': '♛', 'br': '♜', 'bb': '♝', 'bn': '♞'
         };
         
-        this.elements.promotionPieces.innerHTML = '';
+        const promotionContainer = this.elements.promotionPieces;
+        const promotionModal = this.elements.promotionModal;
+        
+        if (!promotionContainer || !promotionModal) {
+            console.error('Promotion elements not found');
+            return;
+        }
+        
+        promotionContainer.innerHTML = '';
         
         ['q', 'r', 'b', 'n'].forEach(piece => {
             const div = document.createElement('div');
             div.className = 'promotion-piece';
             div.textContent = symbols[color + piece];
-            div.addEventListener('click', () => {
+            div.dataset.promotion = piece;
+            
+            // مهم جدًا: السماح بالنقر واللمس
+            div.style.pointerEvents = 'auto';
+            div.style.cursor = 'pointer';
+            div.style.touchAction = 'manipulation';
+            div.style.position = 'relative';
+            div.style.zIndex = '10001';
+            
+            const selectPromotion = (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                
                 if (!this.pendingPromotion || !this.game) {
                     return;
                 }
+                
                 const pending = this.pendingPromotion;
                 this.pendingPromotion = null;
+                
                 this.closePromotionModal();
                 
                 const result = this.game.makeMove(
@@ -825,11 +846,15 @@ class DrDerChessApp {
                 }
                 
                 this.afterMoveUpdate(result);
-            });
-            this.elements.promotionPieces.appendChild(div);
+            };
+            
+            div.addEventListener('click', selectPromotion);
+            promotionContainer.appendChild(div);
         });
         
-        this.elements.promotionModal.classList.remove('hidden');
+        promotionModal.style.pointerEvents = 'auto';
+        promotionModal.style.zIndex = '10000';
+        promotionModal.classList.remove('hidden');
     }
     
     closePromotionModal() {
