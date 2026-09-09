@@ -115,7 +115,6 @@ class DrDerChessApp {
         }
     }
     
-    // ================ Board ================
     buildBoard() {
         const boardContainer = this.elements.chessboard;
         if (!boardContainer) return;
@@ -148,10 +147,7 @@ class DrDerChessApp {
         this.renderPieces();
     }
     
-    // ================ توجيه الرقعة: DrDer دائماً في الأسفل ================
     getSquareName(row, col) {
-        // DrDer دائماً في الأسفل = الصف 7 و 8 في الأسفل
-        // بغض النظر عن اللون
         const file = String.fromCharCode(97 + col);
         const rank = 8 - row;
         return file + rank;
@@ -179,7 +175,6 @@ class DrDerChessApp {
         const containerSize = boardContainer.offsetWidth || 400;
         const pieceFontSize = containerSize / 8 * 0.75;
         
-        // board[row][col] - row 0 = rank 8, row 7 = rank 1
         for (let row = 0; row < 8; row++) {
             for (let col = 0; col < 8; col++) {
                 const piece = board[row][col];
@@ -271,21 +266,23 @@ class DrDerChessApp {
         if (!this.game || this.game.isGameFinished()) return;
         if (this.gameMode === 'computer' && this.stockfishThinking) return;
         
+        const selected = this.game.selectedSquare;
+        
         // في وضع الكمبيوتر: منع تحريك قطع الكمبيوتر
         if (this.gameMode === 'computer') {
             const turn = this.game.getTurn();
             const piece = this.game.getPiece(squareName);
             
-            if (piece && piece.color !== turn) {
+            // إذا كان الدور للكمبيوتر، امنع
+            if (turn !== this.playerColor[0]) {
                 return;
             }
             
-            if (turn !== this.playerColor) {
+            // إذا نقرت على قطعة الكمبيوتر
+            if (piece && piece.color !== this.playerColor[0]) {
                 return;
             }
         }
-        
-        const selected = this.game.selectedSquare;
         
         if (!selected) {
             if (this.game.isSquareSelectable(squareName)) {
@@ -442,7 +439,6 @@ class DrDerChessApp {
         
         this.showScreen('gameScreen');
         
-        // إذا كان الكمبيوتر أبيض، يتحرك أولاً
         if (this.playerColor === 'black') {
             this.stockfishThinking = true;
             this.updateGameStatus();
