@@ -195,7 +195,7 @@ class DrDerChessApp {
         if (!boardContainer) return;
         
         boardContainer.innerHTML = '';
-        boardContainer.style.cssText = 'position:relative;width:100%;height:100%;overflow:hidden;display:grid;grid-template-columns:repeat(8,1fr);grid-template-rows:repeat(8,1fr);transition:transform 0.3s;';
+        boardContainer.style.cssText = 'position:relative;width:100%;height:100%;overflow:hidden;display:grid;grid-template-columns:repeat(8,1fr);grid-template-rows:repeat(8,1fr);';
         this.boardElements = {};
         this.pieceElements = {};
         this.boardBuilt = true;
@@ -239,24 +239,8 @@ class DrDerChessApp {
         const boardContainer = this.elements.chessboard;
         if (!boardContainer) return;
         
-        if (this.gameMode === 'computer') {
-            const computerColor = this.getComputerChessColor();
-            if (computerColor === 'w') {
-                // الكمبيوتر أبيض → الأبيض أعلى الرقعة
-                boardContainer.style.transform = 'rotate(180deg)';
-            } else {
-                // الكمبيوتر أسود → الأسود أعلى الرقعة
-                boardContainer.style.transform = 'rotate(0deg)';
-            }
-        } else if (this.gameMode === 'twoPlayers') {
-            if (this.playerColor === 'black') {
-                boardContainer.style.transform = 'rotate(180deg)';
-            } else {
-                boardContainer.style.transform = 'rotate(0deg)';
-            }
-        } else {
-            boardContainer.style.transform = 'rotate(0deg)';
-        }
+        // لا دوران للرقعة أبداً
+        boardContainer.style.transform = 'rotate(0deg)';
     }
     
     getSquareName(row, col) {
@@ -287,7 +271,20 @@ class DrDerChessApp {
         const containerSize = boardContainer.offsetWidth || 400;
         const pieceFontSize = containerSize / 8 * 0.75;
         
-        for (let row = 0; row < 8; row++) {
+        const computerColor = this.gameMode === 'computer' ? this.getComputerChessColor() : null;
+        
+        const displayRows = [];
+        
+        if (this.gameMode === 'computer' && computerColor === 'w') {
+            for (let i = 0; i < 8; i++) displayRows.push(i);
+        } else if (this.gameMode === 'computer' && computerColor === 'b') {
+            for (let i = 7; i >= 0; i--) displayRows.push(i);
+        } else {
+            for (let i = 0; i < 8; i++) displayRows.push(i);
+        }
+        
+        for (let visualRow = 0; visualRow < 8; visualRow++) {
+            const row = displayRows[visualRow];
             for (let col = 0; col < 8; col++) {
                 const piece = board[row][col];
                 if (!piece) continue;
