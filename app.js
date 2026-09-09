@@ -426,7 +426,6 @@ class DrDerChessApp {
     handleSquareClick(squareName) {
         if (!this.game) return;
         
-        // تحويل المربع البصري إلى المربع الحقيقي
         squareName = this.getRealSquareFromVisual(squareName);
         
         if (this.game.isGameFinished()) return;
@@ -801,15 +800,31 @@ class DrDerChessApp {
             div.className = 'promotion-piece';
             div.textContent = symbols[color + piece];
             div.addEventListener('click', () => {
-                this.closePromotionModal();
-                if (this.pendingPromotion) {
-                    const pending = this.pendingPromotion;
-                    this.pendingPromotion = null;
-                    const result = this.game.makeMove(pending.from, pending.to, piece);
-                    if (result && !result.needsPromotion) {
-                        this.afterMoveUpdate(result);
-                    }
+                if (!this.pendingPromotion || !this.game) {
+                    return;
                 }
+                const pending = this.pendingPromotion;
+                this.pendingPromotion = null;
+                this.closePromotionModal();
+                
+                const result = this.game.makeMove(
+                    pending.from,
+                    pending.to,
+                    piece
+                );
+                
+                if (!result || result.needsPromotion) {
+                    console.error('Promotion failed:', {
+                        from: pending.from,
+                        to: pending.to,
+                        promotion: piece
+                    });
+                    this.pendingPromotion = pending;
+                    this.showPromotionModal(pending.color);
+                    return;
+                }
+                
+                this.afterMoveUpdate(result);
             });
             this.elements.promotionPieces.appendChild(div);
         });
