@@ -11,11 +11,10 @@ class ChessGame {
         this.selectedSquare = null;
         this.legalMovesForSelected = [];
         this.lastMove = null;
-        this.boardSquares = {};
         this.pendingPromotion = null;
+        this.inCheck = false;
     }
 
-    // Initialize new game
     newGame() {
         this.chess = new Chess();
         this.moveHistory = [];
@@ -27,34 +26,29 @@ class ChessGame {
         this.legalMovesForSelected = [];
         this.lastMove = null;
         this.pendingPromotion = null;
+        this.inCheck = false;
     }
 
-    // Get current FEN
     getFen() {
         return this.chess.fen();
     }
 
-    // Get current board position
     getBoard() {
         return this.chess.board();
     }
 
-    // Get current turn
     getTurn() {
         return this.chess.turn();
     }
 
-    // Get all legal moves
     getLegalMoves() {
         return this.chess.moves({ verbose: true });
     }
 
-    // Get legal moves for a specific square
     getLegalMovesForSquare(square) {
         return this.chess.moves({ square: square, verbose: true });
     }
 
-    // Check if a square has legal moves
     isSquareSelectable(square) {
         const piece = this.chess.get(square);
         if (!piece) return false;
@@ -63,74 +57,66 @@ class ChessGame {
         return moves.length > 0;
     }
 
-    // Select a square
     selectSquare(square) {
         this.selectedSquare = square;
         this.legalMovesForSelected = this.getLegalMovesForSquare(square);
         return this.legalMovesForSelected;
     }
 
-    // Deselect square
     deselectSquare() {
         this.selectedSquare = null;
         this.legalMovesForSelected = [];
     }
 
-    // Check if a move is legal
     isLegalMove(from, to) {
         const moves = this.getLegalMovesForSquare(from);
         return moves.some(move => move.to === to);
     }
 
-    // Get move details
     getMoveDetails(from, to) {
         const moves = this.getLegalMovesForSquare(from);
         return moves.find(move => move.to === to);
     }
 
-    // Make a move
     makeMove(from, to, promotion = 'q') {
         if (this.isGameOver) return null;
 
-        // Check if promotion is needed
         const piece = this.chess.get(from);
         if (piece && piece.type === 'p') {
             const targetRank = to.charAt(1);
             if ((piece.color === 'w' && targetRank === '8') || 
                 (piece.color === 'b' && targetRank === '1')) {
-                if (!promotion) {
-                    this.pendingPromotion = { from, to };
-                    return { needsPromotion: true, from, to };
-                }
+                this.pendingPromotion = { from, to, color: piece.color };
+                return { needsPromotion: true, from, to, color: piece.color };
             }
         }
 
         const moveResult = this.chess.move({ from, to, promotion });
         
-        if (!moveResult) return null;
+        if (!moveResult) {
+            return null;
+        }
 
-        // Track captured pieces
+        this.afterMove(moveResult);
+        return moveResult;
+    }
+
+    afterMove(moveResult) {
         if (moveResult.captured) {
             const capturedColor = moveResult.color === 'w' ? 'b' : 'w';
             this.capturedPieces[capturedColor === 'w' ? 'white' : 'black'].push(moveResult.captured);
         }
 
-        // Track move history
         this.moveHistory.push(moveResult);
-
-        // Track last move
         this.lastMove = moveResult;
-
-        // Update current turn
         this.currentTurn = this.chess.turn();
+        this.selectedSquare = null;
+        this.legalMovesForSelected = [];
+        this.inCheck = this.chess.in_check();
 
-        // Check game status
         this.checkGameStatus();
-
-        return moveResult;
     }
 
-    // Check game status
     checkGameStatus() {
         if (this.chess.in_checkmate()) {
             this.isGameOver = true;
@@ -171,12 +157,10 @@ class ChessGame {
         }
     }
 
-    // Check if in check
     isInCheck() {
         return this.chess.in_check();
     }
 
-    // Undo last move
     undoMove() {
         const undone = this.chess.undo();
         if (undone) {
@@ -185,52 +169,45 @@ class ChessGame {
             this.isGameOver = false;
             this.gameResult = null;
             this.lastMove = this.moveHistory.length > 0 ? this.moveHistory[this.moveHistory.length - 1] : null;
+            this.inCheck = this.chess.in_check();
         }
         return undone;
     }
 
-    // Get PGN
     getPgn() {
         return this.chess.pgn();
     }
 
-    // Load from PGN
     loadPgn(pgn) {
         this.chess.load_pgn(pgn);
         this.currentTurn = this.chess.turn();
+        this.inCheck = this.chess.in_check();
         this.checkGameStatus();
     }
 
-    // Get piece at square
     getPiece(square) {
         return this.chess.get(square);
     }
 
-    // Get all captured pieces
     getCapturedPieces() {
         return this.capturedPieces;
     }
 
-    // Get move history
     getMoveHistory() {
         return this.moveHistory;
     }
 
-    // Check if game over
     isGameFinished() {
         return this.isGameOver;
     }
 
-    // Get game result
     getGameResult() {
         return this.gameResult;
     }
 
-    // Get last move
     getLastMove() {
         return this.lastMove;
     }
 }
 
-// Export for use
 window.ChessGame = ChessGame;
