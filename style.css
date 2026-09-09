@@ -52,6 +52,24 @@ body {
 }
 
 /* ============================================
+   TOP BRAND - العنوان أعلى الشاشة الرئيسية
+   ============================================ */
+
+.top-brand {
+    position: absolute;
+    top: 30px;
+    left: 0;
+    right: 0;
+    text-align: center;
+    color: #ffd700;
+    font-size: clamp(32px, 8vmin, 60px);
+    font-weight: bold;
+    letter-spacing: 4px;
+    text-shadow: 0 0 15px rgba(255, 215, 0, 0.7), 0 0 30px rgba(255, 215, 0, 0.3);
+    z-index: 10;
+}
+
+/* ============================================
    START SCREEN (Main Menu)
    ============================================ */
 
@@ -71,6 +89,7 @@ body {
     justify-content: center;
     width: 100%;
     gap: 35px;
+    margin-top: 50px;
 }
 
 .logo-container {
@@ -84,14 +103,6 @@ body {
     width: 120px;
     height: 120px;
     border-radius: 24px;
-}
-
-.game-title {
-    color: #ffd700;
-    font-size: clamp(32px, 7vmin, 60px);
-    font-weight: bold;
-    letter-spacing: 5px;
-    text-align: center;
 }
 
 .menu-buttons {
@@ -204,7 +215,7 @@ body {
 
 .game-brand {
     color: #ffd700;
-    font-size: clamp(24px, 5vmin, 40px);
+    font-size: clamp(20px, 4vmin, 32px);
     font-weight: bold;
     letter-spacing: 3px;
     text-align: center;
@@ -431,16 +442,16 @@ body {
         height: 90px;
     }
     
-    .game-title {
-        font-size: clamp(28px, 6vmin, 40px);
-    }
-    
     .board-wrapper {
         width: min(95vw, 70vh, 480px);
         height: min(95vw, 70vh, 480px);
     }
     
     .game-brand {
-        font-size: clamp(20px, 4vmin, 32px);
+        font-size: clamp(18px, 3.5vmin, 28px);
+    }
+    
+    .top-brand {
+        font-size: clamp(28px, 7vmin, 50px);
     }
 }
