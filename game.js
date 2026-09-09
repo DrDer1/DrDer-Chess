@@ -78,20 +78,29 @@ class ChessGame {
         return moves.find(move => move.to === to);
     }
 
-    makeMove(from, to, promotion = 'q') {
+    makeMove(from, to, promotion) {
         if (this.isGameOver) return null;
 
         const piece = this.chess.get(from);
+        
         if (piece && piece.type === 'p') {
             const targetRank = to.charAt(1);
-            if ((piece.color === 'w' && targetRank === '8') || 
-                (piece.color === 'b' && targetRank === '1')) {
-                this.pendingPromotion = { from, to, color: piece.color };
-                return { needsPromotion: true, from, to, color: piece.color };
+            const isPromotionRank = (
+                (piece.color === 'w' && targetRank === '8') ||
+                (piece.color === 'b' && targetRank === '1')
+            );
+            
+            if (isPromotionRank) {
+                // إذا كانت الترقية غير محددة أو غير صالحة
+                const validPromotions = ['q', 'r', 'b', 'n'];
+                if (!promotion || !validPromotions.includes(promotion)) {
+                    this.pendingPromotion = { from, to, color: piece.color };
+                    return { needsPromotion: true, from, to, color: piece.color };
+                }
             }
         }
 
-        const moveResult = this.chess.move({ from, to, promotion });
+        const moveResult = this.chess.move({ from, to, promotion: promotion || 'q' });
         
         if (!moveResult) {
             return null;
