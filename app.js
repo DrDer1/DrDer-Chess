@@ -235,7 +235,6 @@ class DrDerChessApp {
         this.renderPieces();
     }
     
-    // ================ تحديث اتجاه اللوحة ================
     updateBoardOrientation() {
         const boardContainer = this.elements.chessboard;
         if (!boardContainer) return;
@@ -266,18 +265,6 @@ class DrDerChessApp {
         const file = String.fromCharCode(97 + col);
         const rank = 8 - row;
         return file + rank;
-    }
-    
-    getRealSquareFromVisual(visualSquare) {
-        if (this.gameMode === 'twoPlayers' && this.twoPlayerFlipped) {
-            const file = visualSquare.charAt(0);
-            const rank = parseInt(visualSquare.charAt(1), 10);
-            const realFile = String.fromCharCode(105 - file.charCodeAt(0));
-            const realRank = 9 - rank;
-            return realFile + realRank;
-        }
-        
-        return visualSquare;
     }
     
     renderPieces() {
@@ -393,7 +380,8 @@ class DrDerChessApp {
     handleSquareClick(squareName) {
         if (!this.game) return;
         
-        squareName = this.getRealSquareFromVisual(squareName);
+        // dataset.square يحتوي دائماً على الإحداثي الحقيقي للمربع
+        const realSquare = squareName;
         
         if (this.game.isGameFinished()) return;
         if (this.gameMode === 'computer' && this.stockfishThinking) {
@@ -401,7 +389,7 @@ class DrDerChessApp {
         }
         
         const selected = this.game.selectedSquare;
-        const clickedPiece = this.game.getPiece(squareName);
+        const clickedPiece = this.game.getPiece(realSquare);
         
         if (this.gameMode === 'computer') {
             const playerColor = this.getPlayerChessColor();
@@ -412,35 +400,35 @@ class DrDerChessApp {
                 clickedPiece &&
                 clickedPiece.color !== playerColor &&
                 selected &&
-                this.game.isLegalMove(selected, squareName)
+                this.game.isLegalMove(selected, realSquare)
             ) {
-                this.makeMoveAndUpdate(selected, squareName);
+                this.makeMoveAndUpdate(selected, realSquare);
                 return;
             }
         }
         
         if (!selected) {
-            if (this.game.isSquareSelectable(squareName)) {
-                this.game.selectSquare(squareName);
+            if (this.game.isSquareSelectable(realSquare)) {
+                this.game.selectSquare(realSquare);
                 this.renderPieces();
             }
             return;
         }
         
-        if (selected === squareName) {
+        if (selected === realSquare) {
             this.game.deselectSquare();
             this.renderPieces();
             return;
         }
         
-        if (this.game.isSquareSelectable(squareName)) {
-            this.game.selectSquare(squareName);
+        if (this.game.isSquareSelectable(realSquare)) {
+            this.game.selectSquare(realSquare);
             this.renderPieces();
             return;
         }
         
-        if (this.game.isLegalMove(selected, squareName)) {
-            this.makeMoveAndUpdate(selected, squareName);
+        if (this.game.isLegalMove(selected, realSquare)) {
+            this.makeMoveAndUpdate(selected, realSquare);
             return;
         }
         
