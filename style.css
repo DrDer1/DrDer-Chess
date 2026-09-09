@@ -94,12 +94,6 @@ body {
     text-align: center;
 }
 
-.game-subtitle {
-    color: #ccc;
-    font-size: clamp(14px, 2vmin, 20px);
-    text-align: center;
-}
-
 .menu-buttons {
     display: flex;
     flex-direction: column;
@@ -153,10 +147,6 @@ body {
     border-color: #ffd700;
 }
 
-.btn-icon {
-    font-size: 1.5em;
-}
-
 .btn-text {
     flex: 1;
     text-align: center;
@@ -189,10 +179,11 @@ body {
     background: transparent;
     border: none;
     color: #ffd700;
-    font-size: clamp(14px, 2vmin, 20px);
+    font-size: clamp(20px, 3vmin, 28px);
     cursor: pointer;
     padding: 5px;
     font-family: Arial, sans-serif;
+    font-weight: bold;
 }
 
 .game-status {
@@ -205,11 +196,6 @@ body {
     color: #ffffff;
     font-weight: 600;
     font-size: clamp(13px, 2vmin, 18px);
-}
-
-.move-counter {
-    color: #888;
-    font-size: clamp(11px, 1.5vmin, 14px);
 }
 
 /* ============================================
@@ -390,22 +376,26 @@ body {
 }
 
 .promotion-piece {
-    width: 55px;
-    height: 55px;
-    font-size: 2.2rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: #1a1a1a;
-    border: 2px solid #ffd700;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: all 0.2s;
+    pointer-events: auto !important;
+    cursor: pointer !important;
+    touch-action: manipulation !important;
+    -webkit-tap-highlight-color: transparent !important;
+    user-select: none !important;
+    -webkit-user-select: none !important;
+    position: relative;
+    z-index: 10003;
 }
 
-.promotion-piece:hover {
-    background: #ffd700;
-    transform: scale(1.1);
+#promotionModal {
+    pointer-events: auto !important;
+    z-index: 10000 !important;
+    position: fixed !important;
+}
+
+#promotionPieces {
+    pointer-events: auto !important;
+    z-index: 10002 !important;
+    position: relative !important;
 }
 
 /* ============================================
