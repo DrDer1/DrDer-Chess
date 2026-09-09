@@ -273,27 +273,39 @@ class DrDerChessApp {
         
         const computerColor = this.gameMode === 'computer' ? this.getComputerChessColor() : null;
         
-        const displayRows = [];
+        // تحديد انعكاس العرض البصري
+        // عندما يكون الكمبيوتر أبيض (w): يجب أن يظهر الأبيض في الأعلى
+        // الترتيب الطبيعي: board[0] = rank 8 (أعلى)، board[7] = rank 1 (أسفل)
+        // في الوضع الطبيعي: الأبيض في rank 1-2 = board[6-7] (أسفل)
+        // لذلك عندما يكون الكمبيوتر أبيض، يجب عكس العرض الرأسي
         
-        if (this.gameMode === 'computer' && computerColor === 'w') {
-            for (let i = 0; i < 8; i++) displayRows.push(i);
-        } else if (this.gameMode === 'computer' && computerColor === 'b') {
-            for (let i = 7; i >= 0; i--) displayRows.push(i);
-        } else {
-            for (let i = 0; i < 8; i++) displayRows.push(i);
-        }
+        let visualRow;
         
-        for (let visualRow = 0; visualRow < 8; visualRow++) {
-            const row = displayRows[visualRow];
+        for (let row = 0; row < 8; row++) {
             for (let col = 0; col < 8; col++) {
                 const piece = board[row][col];
                 if (!piece) continue;
                 
                 const squareName = this.getSquareName(row, col);
                 const pieceKey = piece.color + piece.type.toUpperCase();
-                const squareEl = this.boardElements[squareName];
                 
-                if (!squareEl) continue;
+                // تحديد المربع البصري الذي ستوضع فيه القطعة
+                let targetSquareName = squareName;
+                
+                if (this.gameMode === 'computer') {
+                    if (computerColor === 'w') {
+                        // عكس رأسي: rank 1 (صف 7) يظهر في rank 8 (صف 0)
+                        const file = squareName.charAt(0);
+                        const rank = parseInt(squareName.charAt(1));
+                        const visualRank = 9 - rank;
+                        targetSquareName = file + visualRank;
+                    }
+                    // إذا كان الكمبيوتر أسود: لا عكس (الأسود أصلاً في الأعلى)
+                }
+                
+                const targetSquareEl = this.boardElements[targetSquareName];
+                
+                if (!targetSquareEl) continue;
                 
                 const pieceEl = document.createElement('div');
                 pieceEl.className = 'chess-piece';
@@ -307,7 +319,7 @@ class DrDerChessApp {
                     'pointer-events:none;' +
                     'z-index:3;';
                 
-                squareEl.appendChild(pieceEl);
+                targetSquareEl.appendChild(pieceEl);
                 this.pieceElements[squareName] = pieceEl;
             }
         }
@@ -339,14 +351,38 @@ class DrDerChessApp {
         const selected = this.game.selectedSquare;
         if (!selected) return;
         
-        const selectedEl = this.boardElements[selected];
+        let visualSelected = selected;
+        
+        if (this.gameMode === 'computer') {
+            const computerColor = this.getComputerChessColor();
+            if (computerColor === 'w') {
+                const file = selected.charAt(0);
+                const rank = parseInt(selected.charAt(1));
+                const visualRank = 9 - rank;
+                visualSelected = file + visualRank;
+            }
+        }
+        
+        const selectedEl = this.boardElements[visualSelected];
         if (selectedEl) {
             selectedEl.style.backgroundColor = '#f1c40f';
         }
         
         if (this.settings.legalMoves) {
             this.game.legalMovesForSelected.forEach(move => {
-                const squareEl = this.boardElements[move.to];
+                let targetSquare = move.to;
+                
+                if (this.gameMode === 'computer') {
+                    const computerColor = this.getComputerChessColor();
+                    if (computerColor === 'w') {
+                        const file = move.to.charAt(0);
+                        const rank = parseInt(move.to.charAt(1));
+                        const visualRank = 9 - rank;
+                        targetSquare = file + visualRank;
+                    }
+                }
+                
+                const squareEl = this.boardElements[targetSquare];
                 if (squareEl) {
                     const dot = document.createElement('div');
                     dot.style.cssText = 
@@ -363,8 +399,24 @@ class DrDerChessApp {
         const lastMove = this.game.getLastMove();
         if (!lastMove) return;
         
-        const fromEl = this.boardElements[lastMove.from];
-        const toEl = this.boardElements[lastMove.to];
+        let fromSquare = lastMove.from;
+        let toSquare = lastMove.to;
+        
+        if (this.gameMode === 'computer') {
+            const computerColor = this.getComputerChessColor();
+            if (computerColor === 'w') {
+                const fromFile = lastMove.from.charAt(0);
+                const fromRank = parseInt(lastMove.from.charAt(1));
+                fromSquare = fromFile + (9 - fromRank);
+                
+                const toFile = lastMove.to.charAt(0);
+                const toRank = parseInt(lastMove.to.charAt(1));
+                toSquare = toFile + (9 - toRank);
+            }
+        }
+        
+        const fromEl = this.boardElements[fromSquare];
+        const toEl = this.boardElements[toSquare];
         
         if (fromEl) fromEl.style.backgroundColor = 'rgba(241, 196, 15, 0.4)';
         if (toEl) toEl.style.backgroundColor = 'rgba(241, 196, 15, 0.6)';
