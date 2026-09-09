@@ -801,31 +801,39 @@ class DrDerChessApp {
         }
         
         promotionContainer.innerHTML = '';
+        promotionContainer.style.pointerEvents = 'auto';
+        promotionContainer.style.zIndex = '10002';
+        promotionContainer.style.position = 'relative';
         
         ['q', 'r', 'b', 'n'].forEach(piece => {
-            const div = document.createElement('div');
-            div.className = 'promotion-piece';
-            div.textContent = symbols[color + piece];
-            div.dataset.promotion = piece;
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'promotion-piece';
+            btn.textContent = symbols[color + piece];
+            btn.dataset.promotion = piece;
+            btn.style.cssText = 
+                'width:60px;height:60px;font-size:2.2rem;' +
+                'display:flex;align-items:center;justify-content:center;' +
+                'background:#1a1a1a;border:2px solid #ffd700;border-radius:8px;' +
+                'cursor:pointer;pointer-events:auto;touch-action:manipulation;' +
+                'position:relative;z-index:10003;' +
+                'color:inherit;padding:0;margin:0;' +
+                '-webkit-tap-highlight-color:transparent;' +
+                'user-select:none;-webkit-user-select:none;';
             
-            // مهم جدًا: السماح بالنقر واللمس
-            div.style.pointerEvents = 'auto';
-            div.style.cursor = 'pointer';
-            div.style.touchAction = 'manipulation';
-            div.style.position = 'relative';
-            div.style.zIndex = '10001';
+            let promotionHandled = false;
             
-            const selectPromotion = (event) => {
+            const handlePromotion = (event) => {
                 event.preventDefault();
                 event.stopPropagation();
                 
-                if (!this.pendingPromotion || !this.game) {
-                    return;
-                }
+                if (promotionHandled) return;
+                promotionHandled = true;
+                
+                if (!this.pendingPromotion || !this.game) return;
                 
                 const pending = this.pendingPromotion;
                 this.pendingPromotion = null;
-                
                 this.closePromotionModal();
                 
                 const result = this.game.makeMove(
@@ -848,12 +856,15 @@ class DrDerChessApp {
                 this.afterMoveUpdate(result);
             };
             
-            div.addEventListener('click', selectPromotion);
-            promotionContainer.appendChild(div);
+            btn.addEventListener('pointerdown', handlePromotion);
+            btn.addEventListener('click', handlePromotion);
+            
+            promotionContainer.appendChild(btn);
         });
         
         promotionModal.style.pointerEvents = 'auto';
         promotionModal.style.zIndex = '10000';
+        promotionModal.style.position = 'fixed';
         promotionModal.classList.remove('hidden');
     }
     
