@@ -233,7 +233,7 @@ body {
 }
 
 /* ============================================
-   CHESSBOARD - مربع ثابت في المنتصف
+   CHESSBOARD
    ============================================ */
 
 .board-wrapper {
@@ -267,7 +267,7 @@ body {
     transition: background-color 0.15s;
 }
 
-/* Pieces */
+/* Pieces - مهم: لا تستقبل النقر */
 .chess-piece {
     display: flex;
     align-items: center;
@@ -277,9 +277,13 @@ body {
     font-weight: bold;
     line-height: 1;
     cursor: pointer;
-    pointer-events: all;
+    pointer-events: none;
     z-index: 3;
     transition: transform 0.1s;
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
 }
 
 .chess-piece[data-piece^="w"] {
@@ -290,10 +294,6 @@ body {
 .chess-piece[data-piece^="b"] {
     color: #000000;
     text-shadow: 0 0 3px rgba(255, 255, 255, 0.5);
-}
-
-.chess-piece:hover {
-    transform: scale(1.08);
 }
 
 /* ============================================
