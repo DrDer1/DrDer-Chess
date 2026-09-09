@@ -207,17 +207,29 @@ class DrDerChessApp {
                 const squareName = this.getSquareName(row, col);
                 
                 square.className = 'chess-square';
-                square.setAttribute('data-square', squareName);
+                square.dataset.square = squareName;
                 square.style.cssText = 
                     'display:flex;align-items:center;justify-content:center;position:relative;' +
                     'background-color:' + (isLight ? '#d4a574' : '#6b4423') + ';' +
                     'cursor:pointer;';
                 
-                square.addEventListener('click', () => this.handleSquareClick(squareName));
                 boardContainer.appendChild(square);
                 this.boardElements[squareName] = square;
             }
         }
+        
+        // Event Delegation - مرة واحدة فقط على الحاوية
+        boardContainer.onclick = (event) => {
+            const square = event.target.closest('.chess-square');
+            if (!square || !boardContainer.contains(square)) {
+                return;
+            }
+            const squareName = square.dataset.square;
+            if (!squareName) {
+                return;
+            }
+            this.handleSquareClick(squareName);
+        };
         
         this.renderPieces();
     }
@@ -271,8 +283,7 @@ class DrDerChessApp {
                     'font-size:' + pieceFontSize + 'px;' +
                     'font-weight:bold;cursor:pointer;' +
                     'pointer-events:none;' +
-                    'z-index:3;' +
-                    'transition:transform 0.1s;';
+                    'z-index:3;';
                 
                 squareEl.appendChild(pieceEl);
                 this.pieceElements[squareName] = pieceEl;
@@ -285,7 +296,7 @@ class DrDerChessApp {
     
     clearAllHighlights() {
         Object.values(this.boardElements).forEach(square => {
-            const squareName = square.getAttribute('data-square');
+            const squareName = square.dataset.square;
             if (squareName) {
                 const col = squareName.charCodeAt(0) - 97;
                 const row = 8 - parseInt(squareName[1]);
@@ -338,51 +349,64 @@ class DrDerChessApp {
     }
     
     handleSquareClick(squareName) {
-        if (!this.game || this.game.isGameFinished()) return;
-        
-        if (this.gameMode === 'computer' && this.stockfishThinking) return;
+        if (!this.game) return;
+        if (this.game.isGameFinished()) return;
+        if (this.gameMode === 'computer' && this.stockfishThinking) {
+            return;
+        }
         
         const selected = this.game.selectedSquare;
+        const clickedPiece = this.game.getPiece(squareName);
         
+        // وضع الكمبيوتر
         if (this.gameMode === 'computer') {
-            const currentTurn = this.game.getTurn();
-            const playerTurn = this.getPlayerChessColor();
-            
-            if (currentTurn !== playerTurn) {
+            const playerColor = this.getPlayerChessColor();
+            if (this.game.getTurn() !== playerColor) {
                 return;
             }
-            
-            const piece = this.game.getPiece(squareName);
-            if (piece && piece.color !== playerTurn) {
+            if (
+                clickedPiece &&
+                clickedPiece.color !== playerColor &&
+                selected &&
+                this.game.isLegalMove(selected, squareName)
+            ) {
+                this.makeMoveAndUpdate(selected, squareName);
                 return;
             }
         }
         
+        // لا توجد قطعة محددة
         if (!selected) {
             if (this.game.isSquareSelectable(squareName)) {
                 this.game.selectSquare(squareName);
                 this.renderPieces();
             }
-        } else {
-            if (selected === squareName) {
-                this.game.deselectSquare();
-                this.renderPieces();
-                return;
-            }
-            
-            if (this.game.isSquareSelectable(squareName)) {
-                this.game.selectSquare(squareName);
-                this.renderPieces();
-                return;
-            }
-            
-            if (this.game.isLegalMove(selected, squareName)) {
-                this.makeMoveAndUpdate(selected, squareName);
-            } else {
-                this.game.deselectSquare();
-                this.renderPieces();
-            }
+            return;
         }
+        
+        // الضغط على نفس القطعة
+        if (selected === squareName) {
+            this.game.deselectSquare();
+            this.renderPieces();
+            return;
+        }
+        
+        // الضغط على قطعة من نفس اللون
+        if (this.game.isSquareSelectable(squareName)) {
+            this.game.selectSquare(squareName);
+            this.renderPieces();
+            return;
+        }
+        
+        // تنفيذ الحركة
+        if (this.game.isLegalMove(selected, squareName)) {
+            this.makeMoveAndUpdate(selected, squareName);
+            return;
+        }
+        
+        // نقرة غير صالحة
+        this.game.deselectSquare();
+        this.renderPieces();
     }
     
     makeMoveAndUpdate(from, to, promotion = 'q') {
