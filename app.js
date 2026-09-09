@@ -241,14 +241,14 @@ class DrDerChessApp {
         
         if (this.gameMode === 'computer') {
             const computerColor = this.getComputerChessColor();
-            if (computerColor === 'b') {
+            if (computerColor === 'w') {
+                // الكمبيوتر أبيض → الأبيض أعلى الرقعة
                 boardContainer.style.transform = 'rotate(180deg)';
             } else {
+                // الكمبيوتر أسود → الأسود أعلى الرقعة
                 boardContainer.style.transform = 'rotate(0deg)';
             }
         } else if (this.gameMode === 'twoPlayers') {
-            // في وضع اللاعبين: DrDer (الأسفل) يلعب باللون العشوائي
-            // إذا كان DrDer أسود، الرقعة تدور 180 درجة ليظهر الأسود في الأسفل
             if (this.playerColor === 'black') {
                 boardContainer.style.transform = 'rotate(180deg)';
             } else {
