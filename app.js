@@ -115,7 +115,7 @@ class DrDerChessApp {
         }
     }
     
-    // ================ Board - بناء مرة واحدة فقط ================
+    // ================ Board ================
     buildBoard() {
         const boardContainer = this.elements.chessboard;
         if (!boardContainer) return;
@@ -126,7 +126,6 @@ class DrDerChessApp {
         this.pieceElements = {};
         this.boardBuilt = true;
         
-        // إنشاء المربعات
         for (let row = 0; row < 8; row++) {
             for (let col = 0; col < 8; col++) {
                 const square = document.createElement('div');
@@ -146,17 +145,18 @@ class DrDerChessApp {
             }
         }
         
-        // وضع القطع
         this.renderPieces();
     }
     
+    // ================ توجيه الرقعة: DrDer دائماً في الأسفل ================
     getSquareName(row, col) {
-        const file = this.playerColor === 'white' ? col : 7 - col;
-        const rank = this.playerColor === 'white' ? 8 - row : row + 1;
-        return String.fromCharCode(97 + file) + rank;
+        // DrDer دائماً في الأسفل = الصف 7 و 8 في الأسفل
+        // بغض النظر عن اللون
+        const file = String.fromCharCode(97 + col);
+        const rank = 8 - row;
+        return file + rank;
     }
     
-    // ================ تحديث القطع فقط ================
     renderPieces() {
         if (!this.game || !this.boardBuilt) return;
         
@@ -168,20 +168,18 @@ class DrDerChessApp {
             'bK': '♚', 'bQ': '♛', 'bR': '♜', 'bB': '♝', 'bN': '♞', 'bP': '♟'
         };
         
-        // إزالة القطع القديمة
         Object.values(this.pieceElements).forEach(el => {
             if (el.parentNode) el.parentNode.removeChild(el);
         });
         this.pieceElements = {};
         
-        // إزالة النقاط القديمة
         this.clearAllHighlights();
         
         const boardContainer = this.elements.chessboard;
         const containerSize = boardContainer.offsetWidth || 400;
         const pieceFontSize = containerSize / 8 * 0.75;
         
-        // وضع القطع
+        // board[row][col] - row 0 = rank 8, row 7 = rank 1
         for (let row = 0; row < 8; row++) {
             for (let col = 0; col < 8; col++) {
                 const piece = board[row][col];
@@ -211,15 +209,11 @@ class DrDerChessApp {
             }
         }
         
-        // إظهار التحديد
         this.showSelection();
-        
-        // إظهار الحركة الأخيرة
         this.showLastMove();
     }
     
     clearAllHighlights() {
-        // إعادة ألوان المربعات
         Object.values(this.boardElements).forEach(square => {
             const squareName = square.getAttribute('data-square');
             if (squareName) {
@@ -230,7 +224,6 @@ class DrDerChessApp {
             }
         });
         
-        // إزالة النقاط
         Object.values(this.boardElements).forEach(square => {
             const dots = square.querySelectorAll('div');
             dots.forEach(dot => {
@@ -278,10 +271,16 @@ class DrDerChessApp {
         if (!this.game || this.game.isGameFinished()) return;
         if (this.gameMode === 'computer' && this.stockfishThinking) return;
         
+        // في وضع الكمبيوتر: منع تحريك قطع الكمبيوتر
         if (this.gameMode === 'computer') {
             const turn = this.game.getTurn();
-            if ((this.playerColor === 'white' && turn === 'b') ||
-                (this.playerColor === 'black' && turn === 'w')) {
+            const piece = this.game.getPiece(squareName);
+            
+            if (piece && piece.color !== turn) {
+                return;
+            }
+            
+            if (turn !== this.playerColor) {
                 return;
             }
         }
@@ -321,7 +320,6 @@ class DrDerChessApp {
         const result = this.game.makeMove(from, to, promotion);
         if (!result) return;
         
-        // إذا كانت ترقية، أظهر النافذة
         if (result.needsPromotion) {
             this.pendingPromotion = { from: result.from, to: result.to, color: result.color };
             this.showPromotionModal(result.color);
@@ -332,13 +330,11 @@ class DrDerChessApp {
     }
     
     afterMoveUpdate(result) {
-        // تحديث الرقعة
         this.renderPieces();
         this.updateGameStatus();
         this.updateMoveCounter();
         this.updateCapturedPieces();
         
-        // صوت
         if (this.game.isGameFinished()) {
             this.playSound('gameOver');
             this.showGameOverModal();
@@ -355,7 +351,6 @@ class DrDerChessApp {
             this.playSound('move');
         }
         
-        // دور الكمبيوتر
         if (this.gameMode === 'computer') {
             const turn = this.game.getTurn();
             const computerColor = this.playerColor === 'white' ? 'b' : 'w';
@@ -447,6 +442,7 @@ class DrDerChessApp {
         
         this.showScreen('gameScreen');
         
+        // إذا كان الكمبيوتر أبيض، يتحرك أولاً
         if (this.playerColor === 'black') {
             this.stockfishThinking = true;
             this.updateGameStatus();
