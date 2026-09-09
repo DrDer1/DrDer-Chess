@@ -240,9 +240,7 @@ class DrDerChessApp {
         return file + rank;
     }
     
-    // ================ تحويل المربع البصري إلى مربع حقيقي ================
     getRealSquareFromVisual(visualSquare) {
-        // في وضع اللاعبين مع قلب الرقعة
         if (this.gameMode === 'twoPlayers' && this.twoPlayerFlipped) {
             const file = visualSquare.charAt(0);
             const rank = parseInt(visualSquare.charAt(1), 10);
@@ -251,7 +249,6 @@ class DrDerChessApp {
             return realFile + realRank;
         }
         
-        // في وضع الكمبيوتر مع الكمبيوتر أبيض
         if (
             this.gameMode === 'computer' &&
             this.getComputerChessColor() === 'w'
@@ -264,9 +261,7 @@ class DrDerChessApp {
         return visualSquare;
     }
     
-    // ================ تحويل المربع الحقيقي إلى مربع بصري ================
     getVisualSquare(realSquare) {
-        // في وضع اللاعبين مع قلب الرقعة
         if (this.gameMode === 'twoPlayers' && this.twoPlayerFlipped) {
             const file = realSquare.charAt(0);
             const rank = parseInt(realSquare.charAt(1), 10);
@@ -275,7 +270,6 @@ class DrDerChessApp {
             return visualFile + visualRank;
         }
         
-        // في وضع الكمبيوتر مع الكمبيوتر أبيض
         if (
             this.gameMode === 'computer' &&
             this.getComputerChessColor() === 'w'
@@ -318,7 +312,6 @@ class DrDerChessApp {
                 const squareName = this.getSquareName(row, col);
                 const pieceKey = piece.color + piece.type.toUpperCase();
                 
-                // تحويل المربع الحقيقي إلى مربع بصري
                 const visualSquareName = this.getVisualSquare(squareName);
                 const targetSquareEl = this.boardElements[visualSquareName];
                 
@@ -514,6 +507,10 @@ class DrDerChessApp {
     }
     
     afterMoveUpdate(result) {
+        if (this.gameMode === 'twoPlayers') {
+            this.twoPlayerFlipped = !this.twoPlayerFlipped;
+        }
+        
         this.renderPieces();
         this.updateGameStatus();
         this.updateCapturedPieces();
@@ -533,12 +530,6 @@ class DrDerChessApp {
             this.playSound('check');
         } else {
             this.playSound('move');
-        }
-        
-        // قلب الرقعة في وضع اللاعبين
-        if (this.gameMode === 'twoPlayers') {
-            this.twoPlayerFlipped = !this.twoPlayerFlipped;
-            this.renderPieces();
         }
         
         if (this.gameMode === 'computer') {
