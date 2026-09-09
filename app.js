@@ -12,6 +12,7 @@ class DrDerChessApp {
         this.stockfishMoveTime = 15000;
         this.aiTimeout = null;
         this.pendingPromotion = null;
+        this.twoPlayerFlipped = false;
         
         this.settings = {
             sound: true,
@@ -200,8 +201,6 @@ class DrDerChessApp {
         this.pieceElements = {};
         this.boardBuilt = true;
         
-        this.applyBoardOrientation();
-        
         for (let row = 0; row < 8; row++) {
             for (let col = 0; col < 8; col++) {
                 const square = document.createElement('div');
@@ -235,20 +234,24 @@ class DrDerChessApp {
         this.renderPieces();
     }
     
-    applyBoardOrientation() {
-        const boardContainer = this.elements.chessboard;
-        if (!boardContainer) return;
-        
-        boardContainer.style.transform = 'rotate(0deg)';
-    }
-    
     getSquareName(row, col) {
         const file = String.fromCharCode(97 + col);
         const rank = 8 - row;
         return file + rank;
     }
     
+    // ================ تحويل المربع البصري إلى مربع حقيقي ================
     getRealSquareFromVisual(visualSquare) {
+        // في وضع اللاعبين مع قلب الرقعة
+        if (this.gameMode === 'twoPlayers' && this.twoPlayerFlipped) {
+            const file = visualSquare.charAt(0);
+            const rank = parseInt(visualSquare.charAt(1), 10);
+            const realFile = String.fromCharCode(105 - file.charCodeAt(0));
+            const realRank = 9 - rank;
+            return realFile + realRank;
+        }
+        
+        // في وضع الكمبيوتر مع الكمبيوتر أبيض
         if (
             this.gameMode === 'computer' &&
             this.getComputerChessColor() === 'w'
@@ -257,7 +260,32 @@ class DrDerChessApp {
             const rank = parseInt(visualSquare.charAt(1), 10);
             return file + (9 - rank);
         }
+        
         return visualSquare;
+    }
+    
+    // ================ تحويل المربع الحقيقي إلى مربع بصري ================
+    getVisualSquare(realSquare) {
+        // في وضع اللاعبين مع قلب الرقعة
+        if (this.gameMode === 'twoPlayers' && this.twoPlayerFlipped) {
+            const file = realSquare.charAt(0);
+            const rank = parseInt(realSquare.charAt(1), 10);
+            const visualFile = String.fromCharCode(105 - file.charCodeAt(0));
+            const visualRank = 9 - rank;
+            return visualFile + visualRank;
+        }
+        
+        // في وضع الكمبيوتر مع الكمبيوتر أبيض
+        if (
+            this.gameMode === 'computer' &&
+            this.getComputerChessColor() === 'w'
+        ) {
+            const file = realSquare.charAt(0);
+            const rank = parseInt(realSquare.charAt(1), 10);
+            return file + (9 - rank);
+        }
+        
+        return realSquare;
     }
     
     renderPieces() {
@@ -282,8 +310,6 @@ class DrDerChessApp {
         const containerSize = boardContainer.offsetWidth || 400;
         const pieceFontSize = containerSize / 8 * 0.75;
         
-        const computerColor = this.gameMode === 'computer' ? this.getComputerChessColor() : null;
-        
         for (let row = 0; row < 8; row++) {
             for (let col = 0; col < 8; col++) {
                 const piece = board[row][col];
@@ -292,18 +318,9 @@ class DrDerChessApp {
                 const squareName = this.getSquareName(row, col);
                 const pieceKey = piece.color + piece.type.toUpperCase();
                 
-                let targetSquareName = squareName;
-                
-                if (this.gameMode === 'computer') {
-                    if (computerColor === 'w') {
-                        const file = squareName.charAt(0);
-                        const rank = parseInt(squareName.charAt(1));
-                        const visualRank = 9 - rank;
-                        targetSquareName = file + visualRank;
-                    }
-                }
-                
-                const targetSquareEl = this.boardElements[targetSquareName];
+                // تحويل المربع الحقيقي إلى مربع بصري
+                const visualSquareName = this.getVisualSquare(squareName);
+                const targetSquareEl = this.boardElements[visualSquareName];
                 
                 if (!targetSquareEl) continue;
                 
@@ -351,17 +368,7 @@ class DrDerChessApp {
         const selected = this.game.selectedSquare;
         if (!selected) return;
         
-        let visualSelected = selected;
-        
-        if (this.gameMode === 'computer') {
-            const computerColor = this.getComputerChessColor();
-            if (computerColor === 'w') {
-                const file = selected.charAt(0);
-                const rank = parseInt(selected.charAt(1));
-                const visualRank = 9 - rank;
-                visualSelected = file + visualRank;
-            }
-        }
+        const visualSelected = this.getVisualSquare(selected);
         
         const selectedEl = this.boardElements[visualSelected];
         if (selectedEl) {
@@ -370,19 +377,8 @@ class DrDerChessApp {
         
         if (this.settings.legalMoves) {
             this.game.legalMovesForSelected.forEach(move => {
-                let targetSquare = move.to;
-                
-                if (this.gameMode === 'computer') {
-                    const computerColor = this.getComputerChessColor();
-                    if (computerColor === 'w') {
-                        const file = move.to.charAt(0);
-                        const rank = parseInt(move.to.charAt(1));
-                        const visualRank = 9 - rank;
-                        targetSquare = file + visualRank;
-                    }
-                }
-                
-                const squareEl = this.boardElements[targetSquare];
+                const visualTarget = this.getVisualSquare(move.to);
+                const squareEl = this.boardElements[visualTarget];
                 if (squareEl) {
                     const dot = document.createElement('div');
                     dot.style.cssText = 
@@ -399,24 +395,11 @@ class DrDerChessApp {
         const lastMove = this.game.getLastMove();
         if (!lastMove) return;
         
-        let fromSquare = lastMove.from;
-        let toSquare = lastMove.to;
+        const visualFrom = this.getVisualSquare(lastMove.from);
+        const visualTo = this.getVisualSquare(lastMove.to);
         
-        if (this.gameMode === 'computer') {
-            const computerColor = this.getComputerChessColor();
-            if (computerColor === 'w') {
-                const fromFile = lastMove.from.charAt(0);
-                const fromRank = parseInt(lastMove.from.charAt(1));
-                fromSquare = fromFile + (9 - fromRank);
-                
-                const toFile = lastMove.to.charAt(0);
-                const toRank = parseInt(lastMove.to.charAt(1));
-                toSquare = toFile + (9 - toRank);
-            }
-        }
-        
-        const fromEl = this.boardElements[fromSquare];
-        const toEl = this.boardElements[toSquare];
+        const fromEl = this.boardElements[visualFrom];
+        const toEl = this.boardElements[visualTo];
         
         if (fromEl) fromEl.style.backgroundColor = 'rgba(241, 196, 15, 0.4)';
         if (toEl) toEl.style.backgroundColor = 'rgba(241, 196, 15, 0.6)';
@@ -552,6 +535,12 @@ class DrDerChessApp {
             this.playSound('move');
         }
         
+        // قلب الرقعة في وضع اللاعبين
+        if (this.gameMode === 'twoPlayers') {
+            this.twoPlayerFlipped = !this.twoPlayerFlipped;
+            this.renderPieces();
+        }
+        
         if (this.gameMode === 'computer') {
             if (this.aiTimeout) {
                 clearTimeout(this.aiTimeout);
@@ -591,7 +580,6 @@ class DrDerChessApp {
                     this.stockfishReady = true;
                     this.stockfish.postMessage('ucinewgame');
                     
-                    // أقصى قوة - بدون قيود مصطنعة
                     this.stockfish.postMessage('setoption name UCI_LimitStrength value false');
                     this.stockfish.postMessage('setoption name Skill Level value 20');
                     this.stockfish.postMessage('setoption name MultiPV value 1');
@@ -703,6 +691,7 @@ class DrDerChessApp {
         this.validatePlayerColors();
         this.game = new ChessGame();
         this.boardBuilt = false;
+        this.twoPlayerFlipped = false;
         
         this.initStockfish();
         
@@ -729,6 +718,7 @@ class DrDerChessApp {
         this.playerColor = this.getRandomColor();
         this.game = new ChessGame();
         this.boardBuilt = false;
+        this.twoPlayerFlipped = false;
         
         if (this.stockfish) {
             this.stockfish.terminate();
