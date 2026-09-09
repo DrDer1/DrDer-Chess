@@ -96,6 +96,50 @@ class DrDerChessApp {
         return Math.random() < 0.5 ? 'white' : 'black';
     }
     
+    // ================ Color Helpers ================
+    getComputerColor() {
+        return this.playerColor === 'white' ? 'black' : 'white';
+    }
+    
+    getPlayerChessColor() {
+        return this.playerColor === 'white' ? 'w' : 'b';
+    }
+    
+    getComputerChessColor() {
+        return this.playerColor === 'white' ? 'b' : 'w';
+    }
+    
+    isComputerTurn() {
+        if (this.gameMode !== 'computer' || !this.game) {
+            return false;
+        }
+        return this.game.getTurn() === this.getComputerChessColor();
+    }
+    
+    isPlayerTurn() {
+        if (!this.game) {
+            return false;
+        }
+        if (this.gameMode === 'twoPlayers') {
+            return true;
+        }
+        return this.game.getTurn() === this.getPlayerChessColor();
+    }
+    
+    validatePlayerColors() {
+        if (this.gameMode !== 'computer') {
+            return true;
+        }
+        const playerColor = this.getPlayerChessColor();
+        const computerColor = this.getComputerChessColor();
+        if (playerColor === computerColor) {
+            console.error('Player/Computer color conflict detected');
+            this.playerColor = this.playerColor === 'white' ? 'black' : 'white';
+            return false;
+        }
+        return true;
+    }
+    
     initAudio() {
         this.audioElements = {
             move: new Audio('move.mp3'),
@@ -115,6 +159,7 @@ class DrDerChessApp {
         }
     }
     
+    // ================ Board ================
     buildBoard() {
         const boardContainer = this.elements.chessboard;
         if (!boardContainer) return;
@@ -195,10 +240,10 @@ class DrDerChessApp {
                     'width:100%;height:100%;' +
                     'font-size:' + pieceFontSize + 'px;' +
                     'font-weight:bold;cursor:pointer;' +
-                    'pointer-events:all;z-index:3;' +
+                    'pointer-events:none;' +
+                    'z-index:3;' +
                     'transition:transform 0.1s;';
                 
-                pieceEl.addEventListener('click', () => this.handleSquareClick(squareName));
                 squareEl.appendChild(pieceEl);
                 this.pieceElements[squareName] = pieceEl;
             }
@@ -264,22 +309,21 @@ class DrDerChessApp {
     
     handleSquareClick(squareName) {
         if (!this.game || this.game.isGameFinished()) return;
+        
         if (this.gameMode === 'computer' && this.stockfishThinking) return;
         
         const selected = this.game.selectedSquare;
         
-        // في وضع الكمبيوتر: منع تحريك قطع الكمبيوتر
         if (this.gameMode === 'computer') {
-            const turn = this.game.getTurn();
-            const piece = this.game.getPiece(squareName);
+            const currentTurn = this.game.getTurn();
+            const playerTurn = this.getPlayerChessColor();
             
-            // إذا كان الدور للكمبيوتر، امنع
-            if (turn !== this.playerColor[0]) {
+            if (currentTurn !== playerTurn) {
                 return;
             }
             
-            // إذا نقرت على قطعة الكمبيوتر
-            if (piece && piece.color !== this.playerColor[0]) {
+            const piece = this.game.getPiece(squareName);
+            if (piece && piece.color !== playerTurn) {
                 return;
             }
         }
@@ -350,13 +394,21 @@ class DrDerChessApp {
         
         if (this.gameMode === 'computer') {
             const turn = this.game.getTurn();
-            const computerColor = this.playerColor === 'white' ? 'b' : 'w';
+            const computerColor = this.getComputerChessColor();
             
-            if ((computerColor === 'w' && turn === 'w') || 
-                (computerColor === 'b' && turn === 'b')) {
+            if (turn === computerColor) {
                 this.stockfishThinking = true;
                 this.updateGameStatus();
-                this.aiTimeout = setTimeout(() => this.makeAIMove(), 200);
+                if (this.aiTimeout) {
+                    clearTimeout(this.aiTimeout);
+                }
+                this.aiTimeout = setTimeout(() => {
+                    this.aiTimeout = null;
+                    this.makeAIMove();
+                }, 200);
+            } else {
+                this.stockfishThinking = false;
+                this.updateGameStatus();
             }
         }
     }
@@ -389,6 +441,12 @@ class DrDerChessApp {
                     const bestMove = msg.split(' ')[1];
                     if (bestMove && bestMove !== '(none)' && this.stockfishThinking) {
                         this.stockfishThinking = false;
+                        
+                        if (!this.isComputerTurn()) {
+                            this.updateGameStatus();
+                            return;
+                        }
+                        
                         const from = bestMove.substring(0, 2);
                         const to = bestMove.substring(2, 4);
                         const promotion = bestMove.length > 4 ? bestMove.substring(4, 5) : 'q';
@@ -405,25 +463,58 @@ class DrDerChessApp {
     }
     
     makeAIMove() {
-        if (!this.game || this.game.isGameFinished()) return;
+        if (!this.game || this.game.isGameFinished()) {
+            this.stockfishThinking = false;
+            this.updateGameStatus();
+            return;
+        }
+        
+        if (this.gameMode !== 'computer') {
+            this.stockfishThinking = false;
+            return;
+        }
+        
+        if (!this.isComputerTurn()) {
+            this.stockfishThinking = false;
+            this.updateGameStatus();
+            return;
+        }
         
         if (!this.stockfish || !this.stockfishReady) {
             const moves = this.game.getLegalMoves();
             if (moves.length > 0) {
                 const randomMove = moves[Math.floor(Math.random() * moves.length)];
-                setTimeout(() => this.makeMoveAndUpdate(randomMove.from, randomMove.to, randomMove.promotion || 'q'), 200);
+                setTimeout(() => {
+                    if (!this.game || this.game.isGameFinished()) {
+                        this.stockfishThinking = false;
+                        this.updateGameStatus();
+                        return;
+                    }
+                    this.stockfishThinking = false;
+                    this.makeMoveAndUpdate(
+                        randomMove.from,
+                        randomMove.to,
+                        randomMove.promotion || 'q'
+                    );
+                }, 200);
+                return;
             }
+            this.stockfishThinking = false;
+            this.updateGameStatus();
             return;
         }
         
         const fen = this.game.getFen();
         this.stockfish.postMessage('position fen ' + fen);
-        this.stockfish.postMessage('go depth ' + this.stockfishDepth + ' movetime 2000');
+        this.stockfish.postMessage(
+            'go depth ' + this.stockfishDepth + ' movetime 2000'
+        );
     }
     
     startComputerGame() {
         this.gameMode = 'computer';
         this.playerColor = this.getRandomColor();
+        this.validatePlayerColors();
         this.game = new ChessGame();
         this.boardBuilt = false;
         
