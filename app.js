@@ -8,8 +8,8 @@ class DrDerChessApp {
         this.stockfish = null;
         this.stockfishReady = false;
         this.stockfishThinking = false;
-        this.stockfishDepth = 40;
-        this.stockfishMoveTime = 20000;
+        this.stockfishDepth = 99;
+        this.stockfishMoveTime = 15000;
         this.aiTimeout = null;
         this.pendingPromotion = null;
         
@@ -591,16 +591,14 @@ class DrDerChessApp {
                     this.stockfishReady = true;
                     this.stockfish.postMessage('ucinewgame');
                     
-                    // أقصى إعدادات القوة
-                    this.stockfish.postMessage('setoption name Threads value 4');
-                    this.stockfish.postMessage('setoption name Hash value 256');
+                    // أقصى قوة - بدون قيود مصطنعة
                     this.stockfish.postMessage('setoption name UCI_LimitStrength value false');
                     this.stockfish.postMessage('setoption name Skill Level value 20');
                     this.stockfish.postMessage('setoption name MultiPV value 1');
                     this.stockfish.postMessage('setoption name Contempt value 0');
                     
-                    this.stockfishDepth = 40;
-                    this.stockfishMoveTime = 20000;
+                    this.stockfishDepth = 99;
+                    this.stockfishMoveTime = 15000;
                 }
                 
                 if (msg.startsWith('bestmove')) {
