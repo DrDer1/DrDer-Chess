@@ -4,10 +4,9 @@
     "description": "لعبة شطرنج احترافية - DrDer Chess",
     "start_url": "./",
     "display": "standalone",
-    "display_override": ["standalone", "fullscreen", "minimal-ui"],
     "orientation": "portrait",
-    "background_color": "#0d0d1a",
-    "theme_color": "#1a1a2e",
+    "background_color": "#0a0a0a",
+    "theme_color": "#0a0a0a",
     "categories": ["games", "entertainment"],
     "lang": "ar",
     "dir": "rtl",
@@ -25,7 +24,5 @@
             "purpose": "any maskable"
         }
     ],
-    "screenshots": [],
-    "prefer_related_applications": false,
     "scope": "./"
 }
