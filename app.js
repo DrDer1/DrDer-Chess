@@ -279,10 +279,8 @@ class DrDerChessApp {
         this.clearAllHighlights();
         
         const boardContainer = this.elements.chessboard;
-        
-        const firstSquare = this.boardElements['a8'];
-        const squareSize = firstSquare ? firstSquare.getBoundingClientRect().width : (boardContainer.offsetWidth || 400) / 8;
-        const pieceFontSize = squareSize * 0.75;
+        const containerSize = boardContainer.offsetWidth || 400;
+        const pieceFontSize = containerSize / 8 * 0.75;
         
         const computerColor = this.gameMode === 'computer' ? this.getComputerChessColor() : null;
         
@@ -707,12 +705,11 @@ class DrDerChessApp {
         this.elements.opponentName.textContent = 'الكمبيوتر';
         this.elements.playerNameBottom.textContent = 'DrDer';
         
+        this.showScreen('gameScreen');
         this.buildBoard();
         this.updateGameStatus();
         this.updateMoveCounter();
         this.updateCapturedPieces();
-        
-        this.showScreen('gameScreen');
         
         if (this.isComputerTurn()) {
             this.stockfishThinking = true;
@@ -739,12 +736,11 @@ class DrDerChessApp {
         this.elements.opponentName.textContent = 'اللاعب 2';
         this.elements.playerNameBottom.textContent = 'DrDer';
         
+        this.showScreen('gameScreen');
         this.buildBoard();
         this.updateGameStatus();
         this.updateMoveCounter();
         this.updateCapturedPieces();
-        
-        this.showScreen('gameScreen');
     }
     
     updateGameStatus() {
