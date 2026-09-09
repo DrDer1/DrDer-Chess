@@ -279,8 +279,10 @@ class DrDerChessApp {
         this.clearAllHighlights();
         
         const boardContainer = this.elements.chessboard;
-        const containerSize = boardContainer.offsetWidth || 400;
-        const pieceFontSize = containerSize / 8 * 0.75;
+        
+        const firstSquare = this.boardElements['a8'];
+        const squareSize = firstSquare ? firstSquare.getBoundingClientRect().width : (boardContainer.offsetWidth || 400) / 8;
+        const pieceFontSize = squareSize * 0.75;
         
         const computerColor = this.gameMode === 'computer' ? this.getComputerChessColor() : null;
         
